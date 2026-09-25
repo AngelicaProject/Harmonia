@@ -14,7 +14,7 @@ namespace Harmonia.Localization;
 /// A key resolves against the active language first, then the fallback language
 /// ("en"), and finally returns the key itself.
 /// Technical keys (see <see cref="TechnicalPrefixes"/>) always resolve against
-/// the fallback language: diagnostics wording stays English in every UI
+/// the fallback language: their wording stays English in every UI
 /// language and must not be duplicated into non-default dictionaries.
 /// </summary>
 public static class Lang
@@ -28,9 +28,10 @@ public static class Lang
     /// <summary>
     /// Key prefixes that are never translated: <see cref="T(string)"/> resolves
     /// them against the fallback language even when another language is active.
-    /// Covers the per-sheet diagnostics table.
+    /// Covers the per-sheet diagnostics table and the command help, which
+    /// Dalamud reads once at load and lists with every other plugin's commands.
     /// </summary>
-    public static readonly string[] TechnicalPrefixes = ["diagnostics."];
+    public static readonly string[] TechnicalPrefixes = ["diagnostics.", "command."];
 
     private const string EmbeddedPrefix = "Localization.";
     private const string EmbeddedSuffix = ".json";

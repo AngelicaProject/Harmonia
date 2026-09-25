@@ -34,6 +34,20 @@ A folder without a valid `installed.json` is listed as invalid.
 | Loading the active pack at startup | everything again; a failure leaves the game untranslated and shows the reason |
 | Every row the game creates | sheet layout, the v3 row buffer layout, and the source guard of each string (the client language is checked when the pack is selected) |
 
+A translation replaces a game string only when the running game still has
+exactly the source text it was made for. After a game patch, strings that
+changed stay in the original language until the pack is updated; nothing is
+ever applied to the wrong text.
+
+## Publisher trust
+
+Packs are signed by their publisher. The first install of a pack id shows the
+key fingerprint and asks the player to confirm it; the key is then pinned
+(`PinnedPublisherKeys`), and feeds install only packs signed by that key or one
+it endorsed. Unsigned packs and packs signed by another key can be imported
+from a file only, after an explicit confirmation. Installing a lower release
+sequence is manual only.
+
 ## Font glyphs
 
 A pack of format minor 1 may have a `FONTS` section (Aeria

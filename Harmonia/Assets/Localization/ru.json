@@ -1,6 +1,5 @@
 {
   "_name": "Русский",
-  "command.help": "Открыть окно Harmonia.",
   "common.cancel": "Отмена",
   "common.unknown": "неизвестно",
   "notify.restart_needed": "Harmonia выключена. Уже переведённый текст останется до перезапуска игры.",

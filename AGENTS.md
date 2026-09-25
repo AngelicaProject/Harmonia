@@ -67,7 +67,7 @@ For a development run, add the built `HarmoniaEngine.dll` to Dev Plugin Location
 - **Dispose order.** Windows and command, then feeds, then `GameFonts.Dispose()` (removes the Penumbra temporary mod), then `ExcelRowHooks.Dispose()` (disables the hooks and waits for running detours), then `TranslationRuntime.Dispose()` (unmaps the pack). Detours read translations directly from the mapping.
 - **Updates.** Everything a feed claims is checked against the downloaded pack. Trust is pinned per pack id (`PinnedPublisherKeys`): feeds install only packs signed by the pinned key or a key it endorsed; unsigned packs and other keys need a manual import with explicit confirmation; installing a lower release sequence is manual only; automatic installation is off by default.
 - **Game fonts.** Pack glyphs are only added: existing `.fdt` records, kerning pairs, and used atlas pages are never changed, glyphs the font already has are skipped, and new glyphs go only into candidate pages that are empty in the running game. A target whose native line height or ascent changed is skipped. Penumbra is optional; without it translations still apply and fonts are reported as not applied.
-- **Localization.** `en` has every key; other languages have a subset without technical keys (`Lang.TechnicalPrefixes`, currently `diagnostics.*`, always shown in English). Tests check that every key used in code exists in `en`.
+- **Localization.** `en` has every key; other languages have a subset without technical keys (`Lang.TechnicalPrefixes`, currently `diagnostics.*` and `command.*`, always shown in English). Tests check that every key used in code exists in `en`.
 
 ## Common tasks
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.0</Version>
+    <Version>0.1.0.1</Version>
     <AssemblyName>HarmoniaEngine</AssemblyName>
     <RootNamespace>Harmonia</RootNamespace>
     <Nullable>enable</Nullable>
@@ -16,8 +16,8 @@
     <!-- Plugin manifest; keep in sync with repo.json. -->
     <Author>pokeda</Author>
     <Name>Harmonia</Name>
-    <Punchline>Localization engine for Final Fantasy XIV.</Punchline>
-    <Description>Applies Harmonia translation packs to the text of Final Fantasy XIV. Packs are made with Aeria, verified against the running game string by string, and updated from their publishers' feeds. Letters a pack adds to game fonts (such as Cyrillic in window titles) need Penumbra.</Description>
+    <Punchline>Play Final Fantasy XIV in your language with community translations.</Punchline>
+    <Description>Shows Final Fantasy XIV in another language using community translations. Add a translation from the link or file its author gives you, turn it on, and restart the game. Translations update themselves. Characters the game's own fonts don't have, such as Cyrillic in window titles, need Penumbra.</Description>
     <RepoUrl>https://github.com/AngelicaProject/Harmonia</RepoUrl>
     <Tags>localization;translation;harmonia</Tags>
     <IconUrl>https://raw.githubusercontent.com/AngelicaProject/Harmonia/main/Harmonia/Assets/Icon/yuki_art_icon.png</IconUrl>
