@@ -18,14 +18,13 @@ Then install **Harmonia** from `/xlplugins` and restart the game. Harmonia loads
 
 Open the window with `/harmonia`.
 
-- **Packs** — import a pack file (`.hpk` or `.hpk.br`) and choose the pack to use. The choice applies at the next game start.
-- **Updates** — add the feed URL a translation project publishes. Harmonia checks it periodically and offers new releases; automatic installation can be turned on.
-- **Status** — the loaded pack, how many strings were translated or skipped because their source changed, and a per-sheet breakdown. *Copy diagnostics* puts a report on the clipboard for bug reports.
-- **Settings** — the interface language and whether unreviewed translations are applied.
+- **Translations** — whether the translation is on, and your installed translations. *Add translation* takes either the link a translation project publishes (Harmonia installs the translation and keeps it up to date) or a pack file (`.hpk` or `.hpk.br`). Turning a translation on or off applies at the next game start.
+- **Settings** — the window language, whether draft (unreviewed) lines are applied, and how updates are installed.
+- **Diagnostics** — the engine and font state, how many strings were translated or skipped because their source changed, and a per-sheet breakdown. *Copy report* puts it on the clipboard for bug reports.
 
 Packs are signed by their publisher. The first time you install a pack, Harmonia shows the publisher's key fingerprint and asks you to confirm it; after that, updates are accepted only from the same key or one it endorsed. Unsigned packs can be imported manually after an explicit confirmation.
 
-The game's fonts must contain the characters of the target language. Harmonia replaces text only; fonts are not part of a pack.
+Some game fonts lack the target language's letters: the display fonts of window titles, tabs, and the title screen (Jupiter, TrumpGothic, MiedingerMid) have no Cyrillic. A pack may carry the missing glyphs. Harmonia then adds them to the game's own fonts at startup, leaving every existing glyph as it is, and serves the result through **[Penumbra](https://github.com/xivdev/Penumbra)**, which must be installed and enabled for this. Without Penumbra the translation still applies and those labels keep showing dashes; the Translations page says so. The font sources and their licenses are listed in the active translation's details.
 
 ## Building
 

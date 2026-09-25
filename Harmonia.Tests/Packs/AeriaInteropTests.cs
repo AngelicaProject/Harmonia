@@ -47,4 +47,25 @@ public sealed unsafe class AeriaInteropTests
 
         Assert.Equal((CellDecision.Applied, "Вторая"), RuntimeProbe.Lookup(runtime, quest, 3, 1, 0, "Second"));
     }
+
+    [Fact]
+    public void Aeria_fonts_pack_passes_full_verification()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "TestData", "harmonia-interop-fonts.hpk");
+        using var file = HpkFile.Open(path, HpkOpenMode.Full);
+        Assert.True(file.HasFonts);
+        var fonts = file.ReadFonts()!;
+        Assert.Equal("Test Sans", Assert.Single(fonts.Sources).Family);
+        Assert.Equal(["Jupiter_16", "TrumpGothic_184"], fonts.Targets.Select(static t => t.Name));
+        var jupiter = fonts.Targets[0];
+        Assert.Equal((26, 19), (jupiter.LineHeight, jupiter.Ascent));
+        Assert.Equal(['Б', 'Ж'], jupiter.Glyphs.Select(static g => (char)g.Codepoint));
+        var zhe = jupiter.Glyphs[1];
+        Assert.Equal((14, 13, 6, 13), (zhe.Width, zhe.Height, zhe.OffsetY, zhe.Advance));
+        Assert.Equal(Enumerable.Range(0, 14 * 13).Select(static i => (byte)(i * 37 % 256)), fonts.Bitmap(zhe).ToArray());
+
+        using var plain = HpkFile.Open(FixturePath, HpkOpenMode.Full);
+        Assert.False(plain.HasFonts);
+        Assert.Null(plain.ReadFonts());
+    }
 }

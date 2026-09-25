@@ -1,0 +1,63 @@
+name: Release
+
+# Pushing a tag vX.Y.Z.W publishes that version. repo.json is edited by hand
+# before tagging (AGENTS.md, "Release"); this workflow only refuses to publish
+# when the tag, the project, and repo.json disagree.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install Dalamud
+        shell: pwsh
+        run: |
+          $hooks = Join-Path $env:APPDATA "XIVLauncher\addon\Hooks\dev"
+          New-Item -ItemType Directory -Force -Path $hooks | Out-Null
+          Invoke-WebRequest https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
+          Expand-Archive dalamud.zip -DestinationPath $hooks -Force
+
+      - run: dotnet build --configuration Release
+
+      - run: dotnet test --configuration Release --no-build
+
+      - name: Check versions
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $built = Get-Content Harmonia/bin/x64/Release/HarmoniaEngine/HarmoniaEngine.json -Raw | ConvertFrom-Json
+          $repo = @(Get-Content repo.json -Raw | ConvertFrom-Json)[0]
+          $version = $built.AssemblyVersion
+          $link = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$version/HarmoniaEngine.zip"
+          $errors = @()
+          if ($tag -ne "v$version") { $errors += "Tag $tag does not match the built version $version." }
+          if ($repo.AssemblyVersion -ne $version) { $errors += "repo.json AssemblyVersion is $($repo.AssemblyVersion), expected $version." }
+          if ($repo.DownloadLinkInstall -ne $link) { $errors += "repo.json DownloadLinkInstall is $($repo.DownloadLinkInstall), expected $link." }
+          if ($repo.DownloadLinkUpdate -ne $link) { $errors += "repo.json DownloadLinkUpdate is $($repo.DownloadLinkUpdate), expected $link." }
+          foreach ($field in "Author", "Name", "Punchline", "Description", "RepoUrl", "IconUrl", "InternalName", "DalamudApiLevel", "LoadRequiredState", "LoadPriority", "LoadSync", "ApplicableVersion") {
+            if ("$($repo.$field)" -ne "$($built.$field)") { $errors += "repo.json $field is $($repo.$field), the project says $($built.$field)." }
+          }
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Output "::error::$_" }
+            exit 1
+          }
+
+      - name: Publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Copy-Item Harmonia/bin/x64/Release/HarmoniaEngine/latest.zip HarmoniaEngine.zip
+          gh release create $env:GITHUB_REF_NAME HarmoniaEngine.zip --title "Harmonia $($env:GITHUB_REF_NAME.TrimStart('v'))" --generate-notes

@@ -34,6 +34,53 @@ A folder without a valid `installed.json` is listed as invalid.
 | Loading the active pack at startup | everything again; a failure leaves the game untranslated and shows the reason |
 | Every row the game creates | sheet layout, the v3 row buffer layout, and the source guard of each string (the client language is checked when the pack is selected) |
 
+## Font glyphs
+
+A pack of format minor 1 may have a `FONTS` section (Aeria
+`docs/formats/pack-v1.md`). When the active pack has one, `GameFonts` at
+startup:
+
+1. reads the game's own `common/font/<font>_<size>.fdt` and `_lobby.fdt`
+   files and their atlas textures through `IDataManager`;
+2. runs `FontPatcher` for the main set (`fontN.tex`, candidate pages 10, 11,
+   25, 26, 27) and the title-screen set (`font_lobbyN.tex`, candidate page 23).
+   A candidate page is used only when its channel is entirely empty in the
+   running game's texture;
+3. per target: skips it when the `.fdt` is missing or its `fthd` line height or
+   ascent differ from the section; skips glyphs the font already has; packs
+   the rest with `AtlasPacker` (shelves, 1 px gap, taller glyphs first) into
+   the free pages, all or nothing per target, and reports `NoRoom` otherwise;
+4. writes coverage as `round(value × 15 / 255)` into the page's channel
+   (channels 0–3 are bits 8, 4, 0, 12 of each 16-bit `0x1440` pixel), and
+   inserts `.fdt` records in UTF-8 order: `texIndex` = page, `nextOffsetX` =
+   advance − width, `offsetY` from the section, and the Shift-JIS code the
+   game's own `AXIS_12.fdt` has for the character (0 when it has none).
+   Existing records, the kerning table, and every other channel stay as read;
+5. stores the changed files in `<plugin>/resources/font-cache/<game version>-<packHash>/`
+   with `entry.json` written last; later starts reuse them, and other cache
+   keys are deleted;
+6. adds them to every Penumbra collection as the temporary mod
+   `Harmonia fonts` (`AddTemporaryModAll`, priority 99), again when Penumbra
+   reports `Initialized`, and removes it on dispose.
+
+Penumbra queues a temporary mod added outside a framework tick and applies it
+on its next framework update, while the game reads its fonts during its own
+startup, before that. So one second (and at least ten ticks) after the mod is
+added, `GameFonts` asks the game to read its fonts again: virtual function 43
+of `RaptureAtkModule`, called as `(module, false, true)` like Penumbra's
+*Reload Fonts*. It is called only when `ReloadFontsSignature` finds exactly the
+function in that slot and the slot points into the game code. Otherwise the
+state is `NeedsReload` and the Translations page asks the player to press
+*Reload Fonts* in Penumbra. When the UI module does not exist yet, the game has
+read no font and nothing is called.
+
+The game version is the `ffxiv` repository version Lumina reads from
+`ffxivgame.ver`. Without Penumbra, or with a Penumbra API other than 5,
+translations still apply and the Translations and Diagnostics pages report that
+the glyphs are not applied. Like everything else, fonts follow the restart-only rule: the game
+reads its fonts at startup, so a new pack or game version takes effect at the
+next start.
+
 ## Configuration
 
 | Field | Meaning |

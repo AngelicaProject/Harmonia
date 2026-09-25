@@ -24,6 +24,7 @@ public static class HpkFormat
     public const uint KindCells = 6;
     public const uint KindStrings = 7;
     public const uint FirstOptionalKind = 0x10000;
+    public const uint KindFonts = 0x10000;
 
     public const byte StateReviewed = 1;
     public const byte StateUnreviewed = 2;

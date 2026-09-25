@@ -85,7 +85,7 @@ public class LocalizationDictionaryTests
             Localization.Lang.Initialize(null, "ru");
             Assert.True(Localization.Lang.SetLanguage("ru"));
             Assert.Equal("Source changed", Localization.Lang.T("diagnostics.source_changed"));
-            Assert.Equal("Состояние", Localization.Lang.T("tab.status"));
+            Assert.Equal("Переводы", Localization.Lang.T("nav.translations"));
         }
         finally
         {

@@ -3,7 +3,7 @@
         "Author": "pokeda",
         "Name": "Harmonia",
         "Punchline": "Localization engine for Final Fantasy XIV.",
-        "Description": "Applies Harmonia translation packs to the text of Final Fantasy XIV. Packs are made with Aeria, verified against the running game string by string, and updated from their publishers' feeds.",
+        "Description": "Applies Harmonia translation packs to the text of Final Fantasy XIV. Packs are made with Aeria, verified against the running game string by string, and updated from their publishers' feeds. Letters a pack adds to game fonts (such as Cyrillic in window titles) need Penumbra.",
         "InternalName": "HarmoniaEngine",
         "AssemblyVersion": "0.1.0.0",
         "TestingAssemblyVersion": "0.1.0.0",

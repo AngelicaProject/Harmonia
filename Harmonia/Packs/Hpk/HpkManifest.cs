@@ -130,7 +130,7 @@ public sealed partial class HpkManifest
         };
     }
 
-    private static void Fields(JObject obj, string name, params string[] expected)
+    internal static void Fields(JObject obj, string name, params string[] expected)
     {
         foreach (var property in obj.Properties())
         {
@@ -145,7 +145,7 @@ public sealed partial class HpkManifest
         }
     }
 
-    private static JObject Obj(JObject parent, string field, params string[] expected)
+    internal static JObject Obj(JObject parent, string field, params string[] expected)
     {
         if (parent[field] is not JObject obj)
             throw new HpkFormatException($"Field '{field}' must be an object.");
@@ -154,7 +154,7 @@ public sealed partial class HpkManifest
         return obj;
     }
 
-    private static string Str(JObject obj, string field)
+    internal static string Str(JObject obj, string field)
     {
         if (obj[field] is not JValue { Type: JTokenType.String } value || string.IsNullOrWhiteSpace((string?)value))
             throw new HpkFormatException($"Field '{field}' must be a non-empty string.");
@@ -171,7 +171,7 @@ public sealed partial class HpkManifest
         return Str(obj, field);
     }
 
-    private static long Int(JObject obj, string field)
+    internal static long Int(JObject obj, string field)
     {
         if (obj[field] is not JValue { Type: JTokenType.Integer } value)
             throw new HpkFormatException($"Field '{field}' must be an integer.");

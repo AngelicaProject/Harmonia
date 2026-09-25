@@ -1,5 +1,6 @@
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Harmonia.Localization;
 
@@ -20,18 +21,22 @@ internal sealed class RestartWindow : Window
 
     public override void Draw()
     {
-        ImGui.PushTextWrapPos(420);
-        ImGui.TextUnformatted(Lang.T("restart.message"));
-        ImGui.PopTextWrapPos();
-        ImGui.Dummy(new Vector2(0, 6));
-        if (ImGui.Button(Lang.T("restart.disable")))
+        using var wrap = ImRaii.TextWrapPos(420 * Ui.Scale);
+        Ui.Icon(FontAwesomeIcon.RedoAlt, Ui.Pending);
+        ImGui.SameLine();
+        ImGui.TextUnformatted(Lang.T("restart.heading"));
+        Ui.Gap(2);
+        ImGui.TextWrapped(Lang.T("restart.message"));
+        Ui.Gap(8);
+
+        if (Ui.PrimaryButton(FontAwesomeIcon.Check, Lang.T("restart.ok")))
+            IsOpen = false;
+
+        ImGui.SameLine();
+        if (Ui.Button(FontAwesomeIcon.PowerOff, Lang.T("restart.disable")))
         {
             IsOpen = false;
             disablePlugin();
         }
-
-        ImGui.SameLine();
-        if (ImGui.Button(Lang.T("common.close")))
-            IsOpen = false;
     }
 }

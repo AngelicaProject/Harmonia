@@ -1,0 +1,36 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The plugin SDK and the test project both reference Dalamud's
+      # assemblies in the XIVLauncher dev hooks folder.
+      - name: Install Dalamud
+        shell: pwsh
+        run: |
+          $hooks = Join-Path $env:APPDATA "XIVLauncher\addon\Hooks\dev"
+          New-Item -ItemType Directory -Force -Path $hooks | Out-Null
+          Invoke-WebRequest https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
+          Expand-Archive dalamud.zip -DestinationPath $hooks -Force
+
+      - run: dotnet build --configuration Release
+
+      - run: dotnet test --configuration Release --no-build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HarmoniaEngine
+          path: |
+            Harmonia/bin/x64/Release/HarmoniaEngine/latest.zip
+            Harmonia/bin/x64/Release/HarmoniaEngine/HarmoniaEngine.json

@@ -22,6 +22,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private const string CommandName = "/harmonia";
     private const string LocalizationDirName = "Localization";
     private const string ResourcesDirName = "resources";
+    private const string FontCacheDirName = "font-cache";
 
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly IFramework framework;
@@ -34,6 +35,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly FeedUpdateService feeds;
     private readonly TranslationRuntime? runtime;
     private readonly ExcelRowHooks? hooks;
+    private readonly GameFonts? fonts;
     private readonly WindowSystem windows = new("Harmonia");
     private readonly MainWindow mainWindow;
     private readonly RestartWindow restartWindow;
@@ -47,7 +49,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         IPluginLog pluginLog,
         IGameInteropProvider interop,
         ISigScanner scanner,
-        IClientState clientState)
+        IClientState clientState,
+        IDataManager dataManager)
     {
         this.pluginInterface = pluginInterface;
         this.framework = framework;
@@ -96,10 +99,11 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             var file = packs.OpenForRuntime(configuration.ActivePackId, out var openError);
             if (file is null)
             {
-                packError = openError ?? selected?.InvalidReason ?? Lang.T("status.pack_not_usable");
+                packError = openError ?? selected?.InvalidReason ?? Lang.T("info.pack_not_usable");
             }
             else
             {
+                fonts = new GameFonts(pluginInterface, framework, scanner, dataManager, file, Path.Combine(pluginDir, ResourcesDirName, FontCacheDirName), log);
                 runtime = new TranslationRuntime(file, configuration.ApplyUnreviewedTranslations, selected?.FilePath ?? string.Empty);
                 try
                 {
@@ -141,7 +145,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feeds,
             feedState,
             session,
-            new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, configuration.ApplyUnreviewedTranslations, pluginVersion));
+            new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, configuration.ApplyUnreviewedTranslations, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty),
+            pluginInterface.UiBuilder);
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
             IsOpen = reloaded,
@@ -184,6 +189,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         commands.RemoveHandler(CommandName);
 
         feeds.Dispose();
+        fonts?.Dispose();
 
         // The hooks wait for running detours before the pack is unmapped.
         hooks?.Dispose();

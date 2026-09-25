@@ -17,7 +17,7 @@
     <Author>pokeda</Author>
     <Name>Harmonia</Name>
     <Punchline>Localization engine for Final Fantasy XIV.</Punchline>
-    <Description>Applies Harmonia translation packs to the text of Final Fantasy XIV. Packs are made with Aeria, verified against the running game string by string, and updated from their publishers' feeds.</Description>
+    <Description>Applies Harmonia translation packs to the text of Final Fantasy XIV. Packs are made with Aeria, verified against the running game string by string, and updated from their publishers' feeds. Letters a pack adds to game fonts (such as Cyrillic in window titles) need Penumbra.</Description>
     <RepoUrl>https://github.com/AngelicaProject/Harmonia</RepoUrl>
     <Tags>localization;translation;harmonia</Tags>
     <IconUrl>https://raw.githubusercontent.com/AngelicaProject/Harmonia/main/Harmonia/Assets/Icon/yuki_art_icon.png</IconUrl>
@@ -29,6 +29,8 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <!-- Serves the pack's font glyphs through a temporary mod; optional at runtime. -->
+    <PackageReference Include="Penumbra.Api" Version="5.15.1" />
   </ItemGroup>
 
   <ItemGroup>

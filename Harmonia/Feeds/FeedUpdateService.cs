@@ -100,6 +100,11 @@ public sealed class FeedUpdateService : IDisposable
         return true;
     }
 
+    // Reads a feed without adding it, so a pasted link can be checked before
+    // it is saved. The timeout surfaces as TaskCanceledException.
+    public Task<FeedDocument> ProbeAsync(string url, CancellationToken cancellationToken = default) =>
+        FetchFeedAsync(url.Trim(), cancellationToken);
+
     public void RemoveFeed(string url)
     {
         configuration.UpdateFeedUrls.RemoveAll(u => string.Equals(u, url, StringComparison.OrdinalIgnoreCase));
@@ -168,7 +173,7 @@ public sealed class FeedUpdateService : IDisposable
         }
         catch (Exception ex)
         {
-            Fail(status, ex.Message);
+            Fail(status, FeedErrors.Describe(ex), ex);
             return false;
         }
     }
@@ -298,7 +303,7 @@ public sealed class FeedUpdateService : IDisposable
         }
         catch (Exception ex)
         {
-            Fail(status, ex.Message);
+            Fail(status, FeedErrors.Describe(ex), ex);
             return status;
         }
     }
@@ -454,7 +459,7 @@ public sealed class FeedUpdateService : IDisposable
         }
         catch (Exception ex)
         {
-            Fail(status, ex.Message);
+            Fail(status, FeedErrors.Describe(ex), ex);
             return false;
         }
         finally
@@ -520,11 +525,11 @@ public sealed class FeedUpdateService : IDisposable
         state.Feeds = list;
     }
 
-    private void Fail(FeedStatus status, string error)
+    private void Fail(FeedStatus status, string error, Exception? exception = null)
     {
         status.Status = FeedPackStatus.Error;
         status.Error = error;
         Publish(status);
-        log.Warning("Feed check failed for " + status.Url + ": " + error);
+        log.Warning("Feed check failed for " + status.Url + ": " + (exception?.Message ?? error));
     }
 }

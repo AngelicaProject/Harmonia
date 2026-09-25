@@ -43,6 +43,7 @@ public sealed unsafe class HpkFile : IDisposable
     private long cellsOffset;
     private long stringsOffset;
     private long stringsLength;
+    private (long Offset, long Length)? fontsSection;
     private long namesOffset;
     private long namesLength;
     private int sheetCount;
@@ -69,6 +70,8 @@ public sealed unsafe class HpkFile : IDisposable
             Signature = HpkSignature.Parse(Span(bodyLength, checked((int)(length - bodyLength))));
 
         BindSections(sections);
+        if (sections.TryGetValue(HpkFormat.KindFonts, out var fonts))
+            fontsSection = fonts;
         sheetNames = new string[sheetCount];
         layouts = new HpkLayoutColumn[]?[sheetCount];
         ReadSheets();
@@ -78,6 +81,8 @@ public sealed unsafe class HpkFile : IDisposable
             VerifyDigest(bodyLength);
             Signature?.Verify(PackHash);
             ValidateRecords();
+            if (HasFonts)
+                ReadFonts();
         }
     }
 
@@ -90,6 +95,20 @@ public sealed unsafe class HpkFile : IDisposable
     public int SheetCount => sheetCount;
     public int CellCount => cellCount;
     public IReadOnlyList<string> SheetNames => sheetNames;
+
+    // The pack carries a FONTS section (format minor 1).
+    public bool HasFonts => fontsSection is not null;
+
+    // Parses and validates the FONTS section; null when the pack has none.
+    public HpkFonts? ReadFonts()
+    {
+        if (fontsSection is not { } section)
+            return null;
+        if (section.Length > int.MaxValue)
+            throw new HpkFormatException("FONTS section is too large.");
+
+        return HpkFonts.Parse(Span(section.Offset, (int)section.Length));
+    }
 
     public static HpkFile Open(string path, HpkOpenMode mode)
     {
@@ -282,7 +301,14 @@ public sealed unsafe class HpkFile : IDisposable
                 throw new HpkFormatException("Non-zero padding between pack sections.");
 
             cursor = (long)(offset + length);
-            if (kind >= HpkFormat.FirstOptionalKind)
+            if (kind == HpkFormat.KindFonts)
+            {
+                if (!result.TryAdd(kind, ((long)offset, (long)length)))
+                    throw new HpkFormatException("Duplicate pack section " + kind + ".");
+                continue;
+            }
+
+            if (kind > HpkFormat.FirstOptionalKind)
                 continue;
             if (kind is < HpkFormat.KindManifest or > HpkFormat.KindStrings)
                 throw new HpkFormatException("Unknown required pack section " + kind + ".");
