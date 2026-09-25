@@ -16,7 +16,7 @@ Packs are built by Aeria (https://github.com/AngelicaProject/Aeria), which owns 
 - `Harmonia/Game/GameFonts.cs` — builds or reuses the patched font files at startup, serves them through a Penumbra temporary mod (`Penumbra.Api`), and asks the game to reload its fonts once Penumbra has applied the mod.
 - `Harmonia/UI/` — `MainWindow`, a partial class with a sidebar: Translations (status, installed packs merged with their feeds, the add dialog and publisher confirmation in `MainWindow.Actions`), Settings, Diagnostics; `RestartWindow`; `Ui` (cards, badges, notices, buttons).
 - `Harmonia/Localization/Lang.cs` with `Harmonia/Assets/Localization/{en,ru}.json`.
-- `Harmonia/Assets/Icon/yuki_art_icon.png` — the plugin icon referenced by `IconUrl`.
+- `Harmonia/Assets/Icon/harmonia_icon.png` — the plugin icon referenced by `IconUrl`.
 - `Harmonia.Tests/` — xUnit tests: localization dictionaries, the pack reader (`HpkBuilder` is an independent `.hpk` writer for fixtures), installer, feeds, `SeStringCheck`, `RowLayout`, `TranslationRuntime`, the font patching (`Fonts/`, with independent `.fdt`, `.tex`, and `FONTS` writers in `FontTestData`), and `AeriaInteropTests`, which reads `TestData/harmonia-interop.hpk` and `harmonia-interop-fonts.hpk` produced by Aeria's tests.
 - `repo.json` — the custom repository manifest for Dalamud. `docs/packs.md` — what Harmonia adds on top of the Aeria contracts.
 

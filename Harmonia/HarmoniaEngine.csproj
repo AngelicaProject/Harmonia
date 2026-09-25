@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.0.1</Version>
+    <Version>0.1.0.2</Version>
     <AssemblyName>HarmoniaEngine</AssemblyName>
     <RootNamespace>Harmonia</RootNamespace>
     <Nullable>enable</Nullable>
@@ -20,7 +20,7 @@
     <Description>Shows Final Fantasy XIV in another language using community translations. Add a translation from the link or file its author gives you, turn it on, and restart the game. Translations update themselves. Characters the game's own fonts don't have, such as Cyrillic in window titles, need Penumbra.</Description>
     <RepoUrl>https://github.com/AngelicaProject/Harmonia</RepoUrl>
     <Tags>localization;translation;harmonia</Tags>
-    <IconUrl>https://raw.githubusercontent.com/AngelicaProject/Harmonia/main/Harmonia/Assets/Icon/yuki_art_icon.png</IconUrl>
+    <IconUrl>https://raw.githubusercontent.com/AngelicaProject/Harmonia/main/Harmonia/Assets/Icon/harmonia_icon.png</IconUrl>
     <ApplicableVersion>any</ApplicableVersion>
     <LoadRequiredState>2</LoadRequiredState>
     <LoadSync>true</LoadSync>
