@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="Harmonia/HarmoniaEngine.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="Harmonia.Tests/Harmonia.Tests.csproj" />
+</Solution>

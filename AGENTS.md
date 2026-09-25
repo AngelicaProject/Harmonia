@@ -1,0 +1,74 @@
+# AGENTS.md — Harmonia
+
+Harmonia is a Dalamud plugin for Final Fantasy XIV that applies Harmonia translation packs (`.hpk`) to the game's text. `AssemblyName` and `InternalName` are `HarmoniaEngine`; author `pokeda`; license `AGPL-3.0-or-later`. The solution `HarmoniaEngine.slnx` has two projects.
+
+Packs are built by Aeria (https://github.com/AngelicaProject/Aeria), which owns the pack, feed, and pack settings contracts: `docs/formats/pack-v1.md`, `docs/formats/feed-v1.md`, and `docs/formats/pack-settings-v1.md` in that repository. Harmonia implements the reader side and must follow them exactly.
+
+## Layout
+
+- `Harmonia/HarmoniaPlugin.cs` — entry point (`IDalamudPlugin`, services injected through the constructor). Loads the configuration and UI language, checks `SessionPid`, opens the selected pack, installs the row hooks, starts feeds, and registers windows and `/harmonia`. Owns the `Dispose` order.
+- `Harmonia/Configuration.cs` — persisted settings (`Version = 1`). Property names are the saved JSON keys.
+- `Harmonia/Packs/` — installed packs. `Hpk/` reads the format (`HpkFile` maps the file and verifies it in `Metadata` or `Full` mode; `HpkManifest`, `HpkSignature`, `SourceGuard`, `SeStringCheck`). `TranslationPackStore` manages `resources/packs/<packId>/<hash>.hpk` with `installed.json`; `PackInstaller` stages, verifies, and commits imports and downloads; `PublisherTrust` pins signing keys per pack id.
+- `Harmonia/Feeds/` — feed v1 parsing and release selection (`FeedDocument`), polling and installation (`FeedUpdateService`), runtime status for the UI (`FeedUpdateState`).
+- `Harmonia/Runtime/` — `TranslationRuntime` (the session's pack: sheet binding by layout, per-cell decisions, counters) and `RowLayout` (parsing and rebuilding a version 3 row buffer; no game dependency).
+- `Harmonia/Game/ExcelRowHooks.cs` — the only code that touches game memory.
+- `Harmonia/UI/` — `MainWindow` (Status, Packs, Updates, Settings), `RestartWindow`, small helpers in `Ui`.
+- `Harmonia/Localization/Lang.cs` with `Harmonia/Assets/Localization/{en,ru}.json`.
+- `Harmonia/Assets/Icon/yuki_art_icon.png` — the plugin icon referenced by `IconUrl`.
+- `Harmonia.Tests/` — xUnit tests: localization dictionaries, the pack reader (`HpkBuilder` is an independent `.hpk` writer for fixtures), installer, feeds, `SeStringCheck`, `RowLayout`, `TranslationRuntime`, and `AeriaInteropTests`, which reads `TestData/harmonia-interop.hpk` produced by Aeria's tests.
+- `repo.json` — the custom repository manifest for Dalamud. `docs/packs.md` — what Harmonia adds on top of the Aeria contracts.
+
+## How translation is applied
+
+The game builds every Excel row in `ExcelRow_Parse_v3` and immediately hands it to the sheet's row resolver through `IExcelPageRowResolver::StoreRow` (vtable slot 3; implemented by `HashTableExcelPageRowResolver` and `RingBufferExcelPageRowResolver`). No other code can see the row before that call. The `StoreRow` detour:
+
+1. collects the sheet's String columns from `ColumnDefinitions` and binds the sheet to the pack by name, variant, and layout;
+2. takes the row id from the descriptor; for `MultiRow` sheets the subrow id is `SubRowIds[0]` (`LowerRowIdPart` is a hash of the keys, not an id);
+3. parses the row buffer with `RowLayout.TryRead`: a fixed part of `sheet->DataOffset` bytes followed by one NUL-terminated string per String column, in column order; any other layout leaves the row untouched;
+4. decides every pack cell of the row: the source guard must match, and unreviewed cells follow the player's setting;
+5. if anything applies, allocates a buffer of the exact new size through the game's `ExdEnvironment` (vtable +8, `(env, size, 0)`), writes the row in the game's own layout, frees the old buffer (vtable +16, `(env, ptr)`), and replaces `row->Data`.
+
+`ExcelRowHooks` holds signatures for both `StoreRow` functions and for the global `ExdEnvironment` (taken from the allocation site in `ExcelRow_Parse_v3`). A resolved `StoreRow` must be slot 3 of a vtable in `.rdata` whose slots point into the loaded module's code; otherwise no hook is installed and the Status tab shows why. Dalamud scans a copy of the module, so compare against `Module.BaseAddress + TextSectionOffset`, not `TextSectionBase`.
+
+## Build and run
+
+Requires the .NET 10 SDK and a Dalamud installation (the test project references `Lumina.dll` and `Dalamud.dll` through `DalamudLibPath`, by default `%APPDATA%\XIVLauncher\addon\Hooks\dev\`).
+
+```powershell
+dotnet build --configuration Release
+dotnet test
+```
+
+For a development run, add the built `HarmoniaEngine.dll` to Dev Plugin Locations in `/xlsettings`, enable it in `/xlplugins`, and open `/harmonia`.
+
+## Before committing
+
+1. `dotnet build --configuration Release` with no errors or warnings.
+2. `dotnet test` passes.
+3. Never commit `bin/`, `obj/`, `.vs/`, `.idea/`, or `*.user`.
+
+## Code style
+
+- `.editorconfig`: UTF-8, LF, 4 spaces, braces on new lines; private fields `lowerCamelCase`, private static and const members `UpperCamelCase`.
+- File-scoped namespaces; `ImplicitUsings` and `Nullable` are enabled.
+- Async code uses `ConfigureAwait(false)` and passes `CancellationToken`; logging goes through `IHarmoniaLog`.
+- Every user-visible string goes through `Lang.T("...")`.
+- Comments explain invariants and reasons only.
+
+## Invariants
+
+- **Plugin metadata.** Do not rename `AssemblyName`, `RootNamespace`, or `InternalName`, and do not change `LoadSync`, `LoadPriority`, or `ApplicableVersion` without a reason. Keep the manifest fields in `HarmoniaEngine.csproj` and `repo.json` in sync, including the version.
+- **Restart only.** Selecting, updating, or turning off a pack takes effect at the next game start. Live switching is deliberately not offered: the game copies strings into its own caches, so a partial switch would mislead players. Loading the plugin again in the same game session (`SessionPid`) installs no hooks and shows `RestartWindow`.
+- **Hooks exist only while a pack is loaded.** Having no pack is a normal state.
+- **Translation checks.** A string is written only when (1) the pack's source language equals the client language (enforced when the pack is selected), (2) the sheet's String columns (index, offset, order) and variant equal the pack `LAYOUT`, (3) the source string's guard equals the cell's `sourceGuard`, and (4) the row buffer has the expected version 3 layout. Never weaken these. The active pack is verified completely (`HpkOpenMode.Full`) when it is loaded.
+- **Row memory.** Row buffers are allocated and freed only by the game's `ExdEnvironment`, with exactly the calls `ExcelRow_Parse_v3` and `ExcelRow_Clear` make. Untouched strings keep their original hash byte, because the game hashes the resolved text of `_rsv_` strings.
+- **Dispose order.** Windows and command, then feeds, then `ExcelRowHooks.Dispose()` (disables the hooks and waits for running detours), then `TranslationRuntime.Dispose()` (unmaps the pack). Detours read translations directly from the mapping.
+- **Updates.** Everything a feed claims is checked against the downloaded pack. Trust is pinned per pack id (`PinnedPublisherKeys`): feeds install only packs signed by the pinned key or a key it endorsed; unsigned packs and other keys need a manual import with explicit confirmation; installing a lower release sequence is manual only; automatic installation is off by default.
+- **Localization.** `en` has every key; other languages have a subset without technical keys (`Lang.TechnicalPrefixes`, currently `diagnostics.*`, always shown in English). Tests check that every key used in code exists in `en`.
+
+## Common tasks
+
+- New UI string: add the key to `en.json` and `ru.json`, use `Lang.T(...)`, run `dotnet test`.
+- Pack or feed format change: change the specification in Aeria first, then `Packs/Hpk/` and `HpkBuilder`, then `docs/packs.md`.
+- A game patch broke the hooks: compare `ExcelRow_Parse_v3`, `ExcelRow_Clear`, and both `StoreRow` implementations with a decompilation of the new build, update the signatures in `ExcelRowHooks`, and run the `RowLayout` tests.
+- Release: bump `Version` in `HarmoniaEngine.csproj` and `AssemblyVersion`, `TestingAssemblyVersion`, and the download links in `repo.json` together.

@@ -1,0 +1,23 @@
+[
+    {
+        "Author": "pokeda",
+        "Name": "Harmonia",
+        "Punchline": "Localization engine for Final Fantasy XIV.",
+        "Description": "Applies Harmonia translation packs to the text of Final Fantasy XIV. Packs are made with Aeria, verified against the running game string by string, and updated from their publishers' feeds.",
+        "InternalName": "HarmoniaEngine",
+        "AssemblyVersion": "0.1.0.0",
+        "TestingAssemblyVersion": "0.1.0.0",
+        "RepoUrl": "https://github.com/AngelicaProject/Harmonia",
+        "IconUrl": "https://raw.githubusercontent.com/AngelicaProject/Harmonia/main/Harmonia/Assets/Icon/yuki_art_icon.png",
+        "ApplicableVersion": "any",
+        "DalamudApiLevel": 15,
+        "LoadRequiredState": 2,
+        "LoadPriority": 2147483647,
+        "LoadSync": true,
+        "IsHide": false,
+        "IsTestingExclusive": false,
+        "DownloadLinkInstall": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.0.0/HarmoniaEngine.zip",
+        "DownloadLinkTesting": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.0.0/HarmoniaEngine.zip",
+        "DownloadLinkUpdate": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.0.0/HarmoniaEngine.zip"
+    }
+]

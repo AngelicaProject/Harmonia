@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <AssemblyName>HarmoniaEngine</AssemblyName>
+    <RootNamespace>Harmonia</RootNamespace>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageProjectUrl>https://github.com/AngelicaProject/Harmonia</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Plugin manifest; keep in sync with repo.json. -->
+    <Author>pokeda</Author>
+    <Name>Harmonia</Name>
+    <Punchline>Localization engine for Final Fantasy XIV.</Punchline>
+    <Description>Applies Harmonia translation packs to the text of Final Fantasy XIV. Packs are made with Aeria, verified against the running game string by string, and updated from their publishers' feeds.</Description>
+    <RepoUrl>https://github.com/AngelicaProject/Harmonia</RepoUrl>
+    <Tags>localization;translation;harmonia</Tags>
+    <IconUrl>https://raw.githubusercontent.com/AngelicaProject/Harmonia/main/Harmonia/Assets/Icon/yuki_art_icon.png</IconUrl>
+    <ApplicableVersion>any</ApplicableVersion>
+    <LoadRequiredState>2</LoadRequiredState>
+    <LoadSync>true</LoadSync>
+    <LoadPriority>2147483647</LoadPriority>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="DotNet.ReproducibleBuilds" Version="2.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- UI dictionaries: embedded baseline plus on-disk copies in <plugin>/Localization. -->
+    <EmbeddedResource Include="Assets/Localization/en.json">
+      <LogicalName>Localization.en.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets/Localization/ru.json">
+      <LogicalName>Localization.ru.json</LogicalName>
+    </EmbeddedResource>
+    <Content Include="Assets/Localization/*.json">
+      <Link>Localization/%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>
