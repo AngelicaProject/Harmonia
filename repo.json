@@ -5,8 +5,8 @@
         "Punchline": "Play Final Fantasy XIV in your language with community translations.",
         "Description": "Shows Final Fantasy XIV in another language using community translations. Add a translation from the link or file its author gives you, turn it on, and restart the game. Translations update themselves. Characters the game's own fonts don't have, such as Cyrillic in window titles, need Penumbra.",
         "InternalName": "HarmoniaEngine",
-        "AssemblyVersion": "0.1.1.1",
-        "TestingAssemblyVersion": "0.1.1.1",
+        "AssemblyVersion": "0.1.1.2",
+        "TestingAssemblyVersion": "0.1.1.2",
         "RepoUrl": "https://github.com/AngelicaProject/Harmonia",
         "IconUrl": "https://raw.githubusercontent.com/AngelicaProject/Harmonia/main/Harmonia/Assets/Icon/harmonia_icon.png",
         "ApplicableVersion": "any",
@@ -16,8 +16,8 @@
         "LoadSync": true,
         "IsHide": false,
         "IsTestingExclusive": false,
-        "DownloadLinkInstall": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.1.1/HarmoniaEngine.zip",
-        "DownloadLinkTesting": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.1.1/HarmoniaEngine.zip",
-        "DownloadLinkUpdate": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.1.1/HarmoniaEngine.zip"
+        "DownloadLinkInstall": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.1.2/HarmoniaEngine.zip",
+        "DownloadLinkTesting": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.1.2/HarmoniaEngine.zip",
+        "DownloadLinkUpdate": "https://github.com/AngelicaProject/Harmonia/releases/download/v0.1.1.2/HarmoniaEngine.zip"
     }
 ]

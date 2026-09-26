@@ -32,7 +32,6 @@ public sealed partial class HpkManifest
     public HpkContentPolicy ContentPolicy { get; private init; }
     public string ProjectCommit { get; private init; } = string.Empty;
     public string ExporterAeria { get; private init; } = string.Empty;
-    public string ExporterAtlas { get; private init; } = string.Empty;
     public Version MinHarmonia { get; private init; } = new(0, 0);
     public HpkCounts Counts { get; private init; } = new(0, 0, 0, 0, 0);
 
@@ -73,7 +72,7 @@ public sealed partial class HpkManifest
         var target = Obj(root, "target", "language");
         var source = Obj(root, "source", "language", "gameVersion");
         var project = Obj(root, "project", "commit");
-        var exporter = Obj(root, "exporter", "aeria", "atlas");
+        var exporter = Obj(root, "exporter", "aeria");
         var counts = Obj(root, "counts", "sheets", "rows", "cells", "reviewedCells", "strings");
 
         var packId = Str(root, "packId");
@@ -118,7 +117,6 @@ public sealed partial class HpkManifest
             ContentPolicy = policy,
             ProjectCommit = commit,
             ExporterAeria = Str(exporter, "aeria"),
-            ExporterAtlas = Str(exporter, "atlas"),
             MinHarmonia = minHarmonia,
             Counts = new HpkCounts(
                 Int(counts, "sheets"), Int(counts, "rows"), Int(counts, "cells"),

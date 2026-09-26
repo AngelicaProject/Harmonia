@@ -149,7 +149,7 @@ internal sealed class HpkBuilder
             },
             ["contentPolicy"] = ContentPolicy,
             ["project"] = new JObject { ["commit"] = new string('a', 40) },
-            ["exporter"] = new JObject { ["aeria"] = "0.0.0-test", ["atlas"] = "0.0.0-test" },
+            ["exporter"] = new JObject { ["aeria"] = "0.0.0-test" },
             ["minHarmonia"] = MinHarmonia,
             ["counts"] = new JObject
             {
