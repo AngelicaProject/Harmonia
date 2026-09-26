@@ -411,8 +411,7 @@ public sealed class FeedUpdateService : IDisposable
             if (staged.PackHash != release.PackHash || manifest.PackId != feed.PackId ||
                 manifest.Sequence != release.Sequence ||
                 manifest.SourceGameVersion != release.SourceGameVersion ||
-                !string.Equals(manifest.SourceLanguage, release.SourceLanguage, StringComparison.OrdinalIgnoreCase) ||
-                manifest.SourceContentId != release.SourceContentId)
+                !string.Equals(manifest.SourceLanguage, release.SourceLanguage, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Downloaded pack does not match the feed entry.");
 
             var confirmed = staged.Trust == PublisherTrustState.FirstUse &&

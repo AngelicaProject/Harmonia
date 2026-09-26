@@ -10,7 +10,7 @@ namespace Harmonia.Tests.Packs;
 public sealed unsafe class HpkFileTests
 {
     [Fact]
-    public void Source_guard_matches_the_hxs_raw_hash_prefix()
+    public void Source_guard_is_the_domain_framed_raw_hash_prefix()
     {
         var raw = "Hello"u8.ToArray();
         byte[] framed = [.. "HARMONIA-HXS-V1-RAW-STRING"u8, 5, 0, 0, 0, .. raw];

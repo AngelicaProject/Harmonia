@@ -14,7 +14,6 @@ public sealed record FeedRelease(
     string PackHash,
     string SourceLanguage,
     string SourceGameVersion,
-    string SourceContentId,
     Version MinHarmonia,
     FeedDownload Download,
     string? Changelog);
@@ -111,7 +110,6 @@ public sealed partial class FeedDocument
             packHash,
             Str(source, "language"),
             Str(source, "gameVersion"),
-            Str(source, "contentId"),
             minHarmonia,
             new FeedDownload(url, encoding == "br", Int(download, "size"), sha, Int(download, "unpackedSize")),
             OptStr(release, "changelog"));

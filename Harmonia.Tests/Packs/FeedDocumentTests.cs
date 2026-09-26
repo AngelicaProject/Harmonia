@@ -12,7 +12,7 @@ public sealed class FeedDocumentTests
         ["version"] = "v" + sequence,
         ["channel"] = channel,
         ["packHash"] = "sha256:" + new string('a', 64),
-        ["source"] = new JObject { ["language"] = language, ["gameVersion"] = gameVersion, ["contentId"] = "sha256:" + new string('1', 64) },
+        ["source"] = new JObject { ["language"] = language, ["gameVersion"] = gameVersion },
         ["target"] = new JObject { ["language"] = "ru" },
         ["contentPolicy"] = "reviewed",
         ["minHarmonia"] = minHarmonia,

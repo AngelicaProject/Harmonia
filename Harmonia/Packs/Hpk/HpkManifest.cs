@@ -29,8 +29,6 @@ public sealed partial class HpkManifest
     public string TargetLanguage { get; private init; } = string.Empty;
     public string SourceLanguage { get; private init; } = string.Empty;
     public string SourceGameVersion { get; private init; } = string.Empty;
-    public string SourceContentId { get; private init; } = string.Empty;
-    public string SourceSnapshotId { get; private init; } = string.Empty;
     public HpkContentPolicy ContentPolicy { get; private init; }
     public string ProjectCommit { get; private init; } = string.Empty;
     public string ExporterAeria { get; private init; } = string.Empty;
@@ -73,7 +71,7 @@ public sealed partial class HpkManifest
         var publisher = Obj(root, "publisher", "name", "url");
         var release = Obj(root, "release", "sequence", "version", "channel");
         var target = Obj(root, "target", "language");
-        var source = Obj(root, "source", "language", "gameVersion", "contentId", "snapshotId");
+        var source = Obj(root, "source", "language", "gameVersion");
         var project = Obj(root, "project", "commit");
         var exporter = Obj(root, "exporter", "aeria", "atlas");
         var counts = Obj(root, "counts", "sheets", "rows", "cells", "reviewedCells", "strings");
@@ -117,8 +115,6 @@ public sealed partial class HpkManifest
             TargetLanguage = Str(target, "language"),
             SourceLanguage = Str(source, "language"),
             SourceGameVersion = Str(source, "gameVersion"),
-            SourceContentId = Hash(source, "contentId"),
-            SourceSnapshotId = Hash(source, "snapshotId"),
             ContentPolicy = policy,
             ProjectCommit = commit,
             ExporterAeria = Str(exporter, "aeria"),
@@ -181,15 +177,6 @@ public sealed partial class HpkManifest
             throw new HpkFormatException($"Field '{field}' must not be negative.");
 
         return number;
-    }
-
-    private static string Hash(JObject obj, string field)
-    {
-        var value = Str(obj, field);
-        if (!value.StartsWith("sha256:", StringComparison.Ordinal) || value.Length != 71 || !HexPattern().IsMatch(value[7..]))
-            throw new HpkFormatException($"Field '{field}' must be a sha256 identity.");
-
-        return value;
     }
 
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,63}$")]

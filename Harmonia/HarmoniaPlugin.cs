@@ -212,7 +212,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         }
     }
 
-    // HXS source language tags of the client languages.
+    // Pack source language tags of the client languages.
     private static string? ClientLanguageTag(ClientLanguage language) => language switch
     {
         ClientLanguage.Japanese => "ja",

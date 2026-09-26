@@ -146,8 +146,6 @@ internal sealed class HpkBuilder
             {
                 ["language"] = SourceLanguage,
                 ["gameVersion"] = GameVersion,
-                ["contentId"] = "sha256:" + new string('1', 64),
-                ["snapshotId"] = "sha256:" + new string('2', 64),
             },
             ["contentPolicy"] = ContentPolicy,
             ["project"] = new JObject { ["commit"] = new string('a', 40) },

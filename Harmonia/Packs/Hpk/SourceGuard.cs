@@ -3,8 +3,9 @@ using System.Security.Cryptography;
 
 namespace Harmonia.Packs.Hpk;
 
-// First 8 bytes of the HXS raw-string hash:
-// SHA-256("HARMONIA-HXS-V1-RAW-STRING" || u32le(len) || raw). Both sides read
+// First 8 bytes of SHA-256("HARMONIA-HXS-V1-RAW-STRING" || u32le(len) || raw)
+// over the source string's bytes without the terminator; the domain keeps its
+// historical spelling. Both sides read
 // the 8 bytes as a little-endian integer, so equal values mean equal bytes.
 public static class SourceGuard
 {
