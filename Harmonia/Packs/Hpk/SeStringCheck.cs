@@ -6,8 +6,10 @@ namespace Harmonia.Packs.Hpk;
 // into game rows unchanged, so a malformed macro must never get that far.
 public static class SeStringCheck
 {
-    // Game strings nest macros a few levels deep; the limit only bounds recursion.
-    private const int MaxDepth = 32;
+    // Only bounds recursion. Game strings reach 46 levels (chains of <if> whose
+    // else branch holds the next <if>, one per job), and a translation keeps
+    // that structure, so the limit stays far above it.
+    private const int MaxDepth = 256;
 
     public static bool IsWellFormed(ReadOnlySpan<byte> bytes)
     {
