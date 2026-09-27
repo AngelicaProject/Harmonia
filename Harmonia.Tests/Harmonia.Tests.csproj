@@ -20,10 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Harmonia\HarmoniaEngine.csproj" />
-    <Reference Include="Lumina">
-      <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
     <Reference Include="Dalamud">
       <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
       <Private>true</Private>
@@ -32,5 +28,6 @@
 
   <ItemGroup>
     <None Update="TestData\**\*.hpk" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="TestData\**\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

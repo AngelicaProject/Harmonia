@@ -3,35 +3,46 @@ using Xunit;
 
 namespace Harmonia.Tests.Packs;
 
+// TestData/well_formed.vectors.txt is a copy of Aeria's
+// crates/aeria-se/tests/fixtures/well_formed.vectors.txt: the well-formed
+// string rule of Pack Format v1, with every macro text golden vector and
+// real game strings. Update the copy when Aeria changes it.
 public class SeStringCheckTests
 {
-    [Theory]
-    // Addon 17: <kilo(lnum1,\,)> followed by a private-use icon glyph, as shipped by the game.
-    [InlineData("022206E802FF022C03EE8189")]
-    [InlineData("022203E80203")]
-    [InlineData("416263")]
-    public void AcceptsGameStrings(string hex)
+    private static readonly string VectorsPath = Path.Combine(AppContext.BaseDirectory, "TestData", "well_formed.vectors.txt");
+
+    public static TheoryData<string, bool, string> Vectors()
     {
-        Assert.True(SeStringCheck.IsWellFormed(Convert.FromHexString(hex)));
+        var data = new TheoryData<string, bool, string>();
+        foreach (var line in File.ReadLines(VectorsPath))
+        {
+            if (line.Length == 0 || line.StartsWith('#'))
+                continue;
+            var parts = line.Split('\t');
+            var expected = parts[0] switch
+            {
+                "yes" => true,
+                "no" => false,
+                _ => throw new FormatException($"Unexpected answer in '{line}'."),
+            };
+            data.Add(parts[1], expected, parts.Length > 2 ? parts[2] : "");
+        }
+
+        return data;
     }
 
-    // A game string whose <if> chain over the jobs nests more than 32 levels deep.
-    private const string DeeplyNestedGameString =
-        "0208F20237E4E802F23B68FF1050616C6164696E27732053776F7264FFF2021C0208F20216E4E802F23B69FF0E4D6F6E6B27732046697374732EFFF201FD0208F201F7E4E802F23B6AFF0F57617272696F722773204178652EFFF201DD0208F201D7E4E802F23B6BFF11447261676F6F6E27732053706561722EFFF201BB0208F201B5E4E802F23B6CFF0C42617264277320426F772EFFF2019E0208F20198E4E802F23B6DFF104E696E6A612773204B6E697665732EFFF2017D0208F20177E4E802F23B6EFF184461726B204B6E69676874277320436C61796D6F72652EFFF201540208F2014EE4E802F23B6FFF174D616368696E6973742773204D75736B65746F6F6E2EFFF2012C0208F20126E4E802F23B70FF135768697465204D61676527732043616E652EFFF201080208F20102E4E802F23B71FF12426C61636B204D616765277320526F642EFFF0E60208F0E1E4E802F23B72FF1553756D6D6F6E65722773204772696D6F6972652EFFC40208C0E4E802F23B73FF115363686F6C6172277320436F6465782EFFA60208A2E4E802F23B74FF15417374726F6C6F6769616E277320476C6F62652EFF84020880E4E802F27857FF1253616D757261692773204B6174616E612EFF65020861E4E802F27858FF13526564204D6167652773205261706965722EFF45020841E4E802F27859FF1747756E627265616B657227732047756E626C6164652EFF2102081DE4E802F2785AFF1344616E6365722773204368616B72616D732EFF010303030303030303030303030303030303020815E4E80301FF01FF0D20616E6420536869656C642E03202802280AFF054974656DE80401033A20022003E805032F022003E8060329";
+    [Theory]
+    [MemberData(nameof(Vectors))]
+    public void MatchesAeriaVectors(string name, bool expected, string hex)
+    {
+        Assert.True(expected == SeStringCheck.IsWellFormed(Convert.FromHexString(hex)), name);
+    }
 
     [Fact]
-    public void AcceptsDeeplyNestedGameStrings()
+    public void VectorsCoverAcceptedAndRejectedStrings()
     {
-        Assert.True(SeStringCheck.IsWellFormed(Convert.FromHexString(DeeplyNestedGameString)));
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("410042")]
-    // Macro whose declared body runs past the end of the string.
-    [InlineData("022209E80203")]
-    public void RejectsMalformedStrings(string hex)
-    {
-        Assert.False(SeStringCheck.IsWellFormed(Convert.FromHexString(hex)));
+        var answers = Vectors().Select(row => (bool)row[1]).ToList();
+        Assert.Contains(true, answers);
+        Assert.Contains(false, answers);
     }
 }

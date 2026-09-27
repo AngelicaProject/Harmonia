@@ -17,7 +17,7 @@ Packs are built by Aeria (https://github.com/AngelicaProject/Aeria), which owns 
 - `Harmonia/UI/` — `MainWindow`, a partial class with a sidebar: Translations (status, installed packs merged with their feeds, the add dialog and publisher confirmation in `MainWindow.Actions`), Settings, Diagnostics; `RestartWindow`; `Ui` (cards, badges, notices, buttons).
 - `Harmonia/Localization/Lang.cs` with `Harmonia/Assets/Localization/{en,ru}.json`.
 - `Harmonia/Assets/Icon/harmonia_icon.png` — the plugin icon referenced by `IconUrl`.
-- `Harmonia.Tests/` — xUnit tests: localization dictionaries, the pack reader (`HpkBuilder` is an independent `.hpk` writer for fixtures), installer, feeds, `SeStringCheck`, `RowLayout`, `TranslationRuntime`, the font patching (`Fonts/`, with independent `.fdt`, `.tex`, and `FONTS` writers in `FontTestData`), and `AeriaInteropTests`, which reads `TestData/harmonia-interop.hpk` and `harmonia-interop-fonts.hpk` produced by Aeria's tests.
+- `Harmonia.Tests/` — xUnit tests: localization dictionaries, the pack reader (`HpkBuilder` is an independent `.hpk` writer for fixtures), installer, feeds, `SeStringCheck` (against `TestData/well_formed.vectors.txt`, a copy of Aeria's vectors for the well-formed string rule of the pack format), `RowLayout`, `TranslationRuntime`, the font patching (`Fonts/`, with independent `.fdt`, `.tex`, and `FONTS` writers in `FontTestData`), and `AeriaInteropTests`, which reads `TestData/harmonia-interop.hpk` and `harmonia-interop-fonts.hpk` produced by Aeria's tests.
 - `repo.json` — the custom repository manifest for Dalamud. `docs/packs.md` — what Harmonia adds on top of the Aeria contracts.
 
 ## How translation is applied
@@ -34,7 +34,7 @@ The game builds every Excel row in `ExcelRow_Parse_v3` and immediately hands it 
 
 ## Build and run
 
-Requires the .NET 10 SDK and a Dalamud installation (the test project references `Lumina.dll` and `Dalamud.dll` through `DalamudLibPath`, by default `%APPDATA%\XIVLauncher\addon\Hooks\dev\`).
+Requires the .NET 10 SDK and a Dalamud installation (the test project references `Dalamud.dll` through `DalamudLibPath`, by default `%APPDATA%\XIVLauncher\addon\Hooks\dev\`).
 
 ```powershell
 dotnet build --configuration Release
