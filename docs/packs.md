@@ -12,8 +12,16 @@ This file documents only what Harmonia adds on top of those contracts.
 
 ## On-disk layout
 
+Installed packs and the font cache live in the plugin's configuration
+directory (`%APPDATA%\XIVLauncher\pluginConfigs\HarmoniaEngine\`). Dalamud
+installs every plugin version into its own folder and deletes the old ones, so
+nothing kept next to the assembly survives an update. Up to 0.1.4.0 packs were
+kept in `<plugin dir>/resources/packs`; at startup, while the configuration
+directory has none, `PackStorageMigration` copies the packs found there, in
+the running version's folder first and then in other version folders.
+
 ```text
-<plugin-dir>/resources/packs/
+<configuration dir>/packs/
   <id>/                     one installed translation; 12 hex digits Harmonia
                             chose when it was first installed
     <packHash hex>.hpk      installed pack, named by its content hash
@@ -131,7 +139,7 @@ startup:
    advance − width, `offsetY` from the section, and the Shift-JIS code the
    game's own `AXIS_12.fdt` has for the character (0 when it has none).
    Existing records, the kerning table, and every other channel stay as read;
-5. stores the changed files in `<plugin>/resources/font-cache/<game version>-<packHash>/`
+5. stores the changed files in `<configuration dir>/font-cache/<game version>-<packHash>/`
    with `entry.json` written last; later starts reuse them, and other cache
    keys are deleted;
 6. adds them to every Penumbra collection as the temporary mod

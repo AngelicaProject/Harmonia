@@ -21,7 +21,6 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 {
     private const string CommandName = "/harmonia";
     private const string LocalizationDirName = "Localization";
-    private const string ResourcesDirName = "resources";
     private const string FontCacheDirName = "font-cache";
 
     private readonly IDalamudPluginInterface pluginInterface;
@@ -82,9 +81,16 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             Save();
         }
 
+        // Packs and the font cache live in the configuration directory:
+        // Dalamud installs each version into its own folder and deletes the
+        // old ones, so nothing kept next to the assembly survives an update.
+        var dataDir = pluginInterface.ConfigDirectory.FullName;
+        Directory.CreateDirectory(dataDir);
+        PackStorageMigration.CopyLegacyPacks(pluginDir, Path.Combine(dataDir, TranslationPackStore.PacksDirName), log);
+
         var pluginVersion = pluginInterface.Manifest.AssemblyVersion.ToString();
         packs = new TranslationPackStore(
-            Path.Combine(pluginDir, ResourcesDirName),
+            dataDir,
             log,
             new FrameworkGameVersionProvider(),
             pluginVersion,
@@ -104,7 +110,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             }
             else
             {
-                fonts = new GameFonts(pluginInterface, framework, scanner, dataManager, file, Path.Combine(pluginDir, ResourcesDirName, FontCacheDirName), log);
+                fonts = new GameFonts(pluginInterface, framework, scanner, dataManager, file, Path.Combine(dataDir, FontCacheDirName), log);
                 runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
                     new SheetFilter(configuration.UntranslatedSheets));
                 try

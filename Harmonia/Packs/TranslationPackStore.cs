@@ -6,7 +6,8 @@ using Newtonsoft.Json.Linq;
 
 namespace Harmonia.Packs;
 
-// Installed translations live in <resources>/packs/<id>/<hash>.hpk, where
+// Installed translations live in <data>/packs/<id>/<hash>.hpk (<data> is the
+// plugin configuration directory), where
 // <id> is a name Harmonia gives the translation when it is first installed
 // (packs carry no identifier). The translation's installed.json names the
 // current file, the signing key it trusts, and the feed it updates from. Only
