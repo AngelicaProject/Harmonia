@@ -2,8 +2,8 @@ using Harmonia.Packs.Hpk;
 
 namespace Harmonia.Packs;
 
-// One installed pack as listed by the store. Invalid packs stay listed with a
-// reason instead of failing the whole scan.
+// One installed translation as listed by the store. Invalid packs stay listed
+// with a reason instead of failing the whole scan.
 public sealed class TranslationPack
 {
     public TranslationPack(
@@ -13,6 +13,8 @@ public sealed class TranslationPack
         HpkManifest? manifest,
         string? packHash,
         string? publisherFingerprint,
+        string? pinnedKey,
+        string? feedUrl,
         string? invalidReason,
         PackEnvironment environment)
     {
@@ -22,6 +24,8 @@ public sealed class TranslationPack
         Manifest = manifest;
         PackHash = packHash;
         PublisherFingerprint = publisherFingerprint;
+        PinnedKey = pinnedKey;
+        FeedUrl = feedUrl;
         InvalidReason = invalidReason;
 
         if (manifest is not null && invalidReason is null)
@@ -32,12 +36,23 @@ public sealed class TranslationPack
         }
     }
 
+    // The translation's folder name in the pack store; Harmonia's own name,
+    // not part of the pack.
     public string Id { get; }
     public string PackDirectory { get; }
     public string? FilePath { get; }
     public HpkManifest? Manifest { get; }
     public string? PackHash { get; }
+
+    // The key that signed the installed file.
     public string? PublisherFingerprint { get; }
+
+    // The key this translation trusts: files signed by it, or by a key it
+    // endorsed, update the translation. Null for an unsigned translation.
+    public string? PinnedKey { get; }
+
+    // The feed the translation updates from; it may no longer be followed.
+    public string? FeedUrl { get; }
     public string? InvalidReason { get; }
     public bool IsValid => InvalidReason is null;
     public bool IsSigned => PublisherFingerprint is not null;
@@ -61,8 +76,11 @@ public static class PackCompatibility
     // Unknown client language cannot be judged here; the per-cell source
     // guard still rejects every string from another language at runtime.
     public static bool IsLanguageCompatible(HpkManifest manifest, string? clientLanguage) =>
+        IsLanguageCompatible(manifest.GameLanguage, clientLanguage);
+
+    public static bool IsLanguageCompatible(string gameLanguage, string? clientLanguage) =>
         string.IsNullOrWhiteSpace(clientLanguage) ||
-        string.Equals(manifest.SourceLanguage, clientLanguage.Trim(), StringComparison.OrdinalIgnoreCase);
+        string.Equals(gameLanguage, clientLanguage.Trim(), StringComparison.OrdinalIgnoreCase);
 
     public static bool IsPluginSupported(HpkManifest manifest, string? pluginVersion) =>
         IsPluginSupported(manifest.MinHarmonia, pluginVersion);
@@ -76,7 +94,7 @@ public static class PackCompatibility
     }
 
     public static bool? GameVersionMatches(HpkManifest manifest, string? gameVersion) =>
-        GameVersionMatches(manifest.SourceGameVersion, gameVersion);
+        GameVersionMatches(manifest.GameVersion, gameVersion);
 
     public static bool? GameVersionMatches(string packGameVersion, string? gameVersion) =>
         string.IsNullOrWhiteSpace(gameVersion)

@@ -58,8 +58,6 @@ internal sealed partial class MainWindow
             Ui.Gap(2);
             Row(Lang.T("info.applied"), totals.Applied.ToString("N0", CultureInfo.CurrentCulture));
             Row(Lang.T("info.source_changed"), totals.SourceChanged.ToString("N0", CultureInfo.CurrentCulture));
-            if (totals.Unreviewed > 0)
-                Row(Lang.T("info.unreviewed"), totals.Unreviewed.ToString("N0", CultureInfo.CurrentCulture));
             if (totals.MatchRate is { } rate)
                 Row(Lang.T("info.match_rate"), rate.ToString("P1", CultureInfo.CurrentCulture));
             if (totals.LayoutMismatchSheets > 0)
@@ -119,14 +117,13 @@ internal sealed partial class MainWindow
             return;
         }
 
-        using var table = ImRaii.Table("##sheets", 6, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.SizingStretchProp);
+        using var table = ImRaii.Table("##sheets", 5, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.SizingStretchProp);
         if (!table)
             return;
 
         ImGui.TableSetupColumn(Lang.T("diagnostics.sheet"));
         ImGui.TableSetupColumn(Lang.T("diagnostics.applied"));
         ImGui.TableSetupColumn(Lang.T("diagnostics.source_changed"));
-        ImGui.TableSetupColumn(Lang.T("diagnostics.unreviewed"));
         ImGui.TableSetupColumn(Lang.T("diagnostics.rows"));
         ImGui.TableSetupColumn(Lang.T("diagnostics.problems"));
         ImGui.TableHeadersRow();
@@ -136,7 +133,6 @@ internal sealed partial class MainWindow
             Cell(sheet.SheetName);
             Cell(sheet.Applied.ToString(CultureInfo.InvariantCulture));
             Cell(sheet.SourceChanged.ToString(CultureInfo.InvariantCulture));
-            Cell(sheet.Unreviewed.ToString(CultureInfo.InvariantCulture));
             Cell(sheet.RowsRebuilt.ToString(CultureInfo.InvariantCulture));
             Cell(sheet.LayoutMismatch
                 ? Lang.T("diagnostics.layout_mismatch")
@@ -174,9 +170,9 @@ internal sealed partial class MainWindow
         {
             var t = runtime.GetTotals();
             text.AppendLine(CultureInfo.InvariantCulture, $"Pack: {runtime.Info.PackId} ({runtime.Info.Sheets} sheets, {runtime.Info.Cells} cells)");
-            text.AppendLine(CultureInfo.InvariantCulture, $"Applied {t.Applied}, source changed {t.SourceChanged}, unreviewed {t.Unreviewed}, rows {t.RowsRebuilt}, unexpected rows {t.RowsUnexpected}, layout mismatch sheets {t.LayoutMismatchSheets}");
+            text.AppendLine(CultureInfo.InvariantCulture, $"Applied {t.Applied}, source changed {t.SourceChanged}, rows {t.RowsRebuilt}, unexpected rows {t.RowsUnexpected}, layout mismatch sheets {t.LayoutMismatchSheets}");
             foreach (var s in runtime.GetSheetStats())
-                text.AppendLine(CultureInfo.InvariantCulture, $"  {s.SheetName}: applied {s.Applied}, changed {s.SourceChanged}, unreviewed {s.Unreviewed}, rows {s.RowsRebuilt}, unexpected {s.RowsUnexpected}, layout mismatch {s.LayoutMismatch}");
+                text.AppendLine(CultureInfo.InvariantCulture, $"  {s.SheetName}: applied {s.Applied}, changed {s.SourceChanged}, rows {s.RowsRebuilt}, unexpected {s.RowsUnexpected}, layout mismatch {s.LayoutMismatch}");
         }
 
         foreach (var feed in feedState.Feeds)

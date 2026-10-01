@@ -33,8 +33,8 @@ public sealed class TranslationRuntimeTests
 {
     private static readonly StringColumn[] AddonColumns = [new(0, 4), new(2, 8)];
 
-    private static TranslationRuntime Open(HpkBuilder builder, bool applyUnreviewed = true) =>
-        new(HpkFile.FromBytes(builder.Build(), HpkOpenMode.Full), applyUnreviewed, "test.hpk");
+    private static TranslationRuntime Open(HpkBuilder builder) =>
+        new(HpkFile.FromBytes(builder.Build(), HpkOpenMode.Full), "test", "test.hpk");
 
     [Fact]
     public void Sheets_bind_only_when_the_running_layout_matches_exactly()
@@ -73,28 +73,6 @@ public sealed class TranslationRuntimeTests
 
         Assert.Equal((CellDecision.Applied, "Первая"), RuntimeProbe.Lookup(runtime, quest, 3, 0, 0, "First"));
         Assert.Equal((CellDecision.Applied, "Вторая"), RuntimeProbe.Lookup(runtime, quest, 3, 1, 0, "Second"));
-    }
-
-    [Fact]
-    public void Unreviewed_cells_follow_the_player_setting()
-    {
-        var builder = new HpkBuilder { ContentPolicy = "all" };
-        builder.Sheets.Add(new HpkTestSheet("Addon", false, [(0, 4), (2, 8)],
-        [
-            new HpkTestCell(1, 0, 0, "Черновик", "Draft", HpkFormat.StateUnreviewed),
-        ]));
-
-        using (var runtime = Open(builder, applyUnreviewed: false))
-        {
-            var addon = runtime.BindSheet("Addon", false, AddonColumns);
-            Assert.Equal(CellDecision.Unreviewed, RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Draft").Decision);
-        }
-
-        using (var runtime = Open(builder, applyUnreviewed: true))
-        {
-            var addon = runtime.BindSheet("Addon", false, AddonColumns);
-            Assert.Equal((CellDecision.Applied, "Черновик"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Draft"));
-        }
     }
 
     [Fact]

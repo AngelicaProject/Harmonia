@@ -17,14 +17,11 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Game process id of the session in which the plugin last loaded.</summary>
     public int SessionPid { get; set; }
 
-    /// <summary>Pack applied at the next game start; empty means none.</summary>
+    /// <summary>
+    /// Installed translation applied at the next game start, by its folder name
+    /// in the pack store; empty means none.
+    /// </summary>
     public string ActivePackId { get; set; } = string.Empty;
-
-    /// <summary>Apply cells the publisher exported as unreviewed.</summary>
-    public bool ApplyUnreviewedTranslations { get; set; } = true;
-
-    /// <summary>Signing key fingerprint trusted for each pack id.</summary>
-    public Dictionary<string, string> PinnedPublisherKeys { get; set; } = new(StringComparer.Ordinal);
 
     /// <summary>Feed URLs polled for new releases.</summary>
     public List<string> UpdateFeedUrls { get; set; } = [];
@@ -40,8 +37,8 @@ public sealed class Configuration : IPluginConfiguration
 
     public DateTime LastUpdateCheck { get; set; }
 
-    /// <summary>Release sequence already announced, per pack id.</summary>
-    public Dictionary<string, string> NotifiedPackVersions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Release version already announced, per feed URL.</summary>
+    public Dictionary<string, string> NotifiedFeedVersions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Game version seen at the last start; a change triggers a feed check.</summary>
     public string LastSeenGameVersion { get; set; } = string.Empty;

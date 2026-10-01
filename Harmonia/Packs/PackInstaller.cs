@@ -7,14 +7,15 @@ namespace Harmonia.Packs;
 // the staging folder for a trust decision. Disposing discards it.
 public sealed class StagedPack : IDisposable
 {
-    internal StagedPack(string stagingPath, HpkFile file, PublisherTrustState trust, TranslationPack? installed)
+    internal StagedPack(string stagingPath, HpkFile file, PublisherTrustState trust, TranslationPack? target, string? feedUrl)
     {
         StagingPath = stagingPath;
         Manifest = file.Manifest;
         PackHash = file.PackHashText;
         Fingerprint = file.Signature?.Fingerprint;
         Trust = trust;
-        InstalledSequence = installed?.Manifest?.Sequence;
+        Target = target;
+        FeedUrl = feedUrl;
     }
 
     public string StagingPath { get; }
@@ -22,8 +23,17 @@ public sealed class StagedPack : IDisposable
     public string PackHash { get; }
     public string? Fingerprint { get; }
     public PublisherTrustState Trust { get; }
-    public long? InstalledSequence { get; }
-    public bool IsDowngrade => InstalledSequence is { } installed && Manifest.Sequence < installed;
+
+    // The installed translation this pack updates; null for a new one.
+    public TranslationPack? Target { get; }
+
+    // The feed the pack was downloaded from; null for a file.
+    public string? FeedUrl { get; }
+
+    public string? InstalledVersion => Target?.Manifest?.Version;
+
+    public bool IsDowngrade => InstalledVersion is { } installed && PackVersion.Compare(Manifest.Version, installed) < 0;
+
     internal bool Committed { get; set; }
 
     public void Dispose()
@@ -46,19 +56,19 @@ public sealed class StagedPack : IDisposable
 public sealed class PackInstaller
 {
     private readonly TranslationPackStore store;
-    private readonly Configuration configuration;
-    private readonly Action saveConfiguration;
     private readonly IHarmoniaLog log;
 
-    public PackInstaller(TranslationPackStore store, Configuration configuration, Action saveConfiguration, IHarmoniaLog log)
+    public PackInstaller(TranslationPackStore store, IHarmoniaLog log)
     {
         this.store = store ?? throw new ArgumentNullException(nameof(store));
-        this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        this.saveConfiguration = saveConfiguration ?? throw new ArgumentNullException(nameof(saveConfiguration));
         this.log = log ?? throw new ArgumentNullException(nameof(log));
     }
 
-    public StagedPack Stage(string sourcePath, long maxUnpackedBytes = HpkFormat.MaxPackBytes)
+    // feedUrl names the feed the file came from; null for a file the player
+    // chose. A pack from a feed updates the translation of that feed; a file
+    // updates the translation that trusts its key, or, unsigned, the
+    // unsigned translation with its title and team.
+    public StagedPack Stage(string sourcePath, long maxUnpackedBytes = HpkFormat.MaxPackBytes, string? feedUrl = null)
     {
         maxUnpackedBytes = Math.Min(maxUnpackedBytes, HpkFormat.MaxPackBytes);
         Directory.CreateDirectory(store.StagingDir);
@@ -84,9 +94,11 @@ public sealed class PackInstaller
             }
 
             using var file = HpkFile.Open(stagingPath, HpkOpenMode.Full);
-            configuration.PinnedPublisherKeys.TryGetValue(file.Manifest.PackId, out var pinned);
-            var trust = PublisherTrust.Evaluate(pinned, file.Signature);
-            return new StagedPack(stagingPath, file, trust, store.TryGet(file.Manifest.PackId));
+            var installed = feedUrl is not null ? store.FindByFeed(feedUrl)
+                : file.Signature is { } signature ? store.FindByKey(signature)
+                : store.FindUnsigned(file.Manifest);
+            var trust = PublisherTrust.Evaluate(installed?.PinnedKey, file.Signature);
+            return new StagedPack(stagingPath, file, trust, installed, feedUrl);
         }
         catch
         {
@@ -97,7 +109,8 @@ public sealed class PackInstaller
 
     // trustConfirmed records the user's explicit decision for FirstUse,
     // KeyChanged or Unsigned packs; Trusted and Rotated packs never need it.
-    public void Commit(StagedPack staged, bool trustConfirmed)
+    // Returns the id of the installed translation.
+    public string Commit(StagedPack staged, bool trustConfirmed)
     {
         ArgumentNullException.ThrowIfNull(staged);
         if (staged.Committed)
@@ -105,7 +118,7 @@ public sealed class PackInstaller
         if (!PublisherTrust.InstallsWithoutConfirmation(staged.Trust) && !trustConfirmed)
             throw new InvalidOperationException("Publisher trust was not confirmed.");
 
-        var packId = staged.Manifest.PackId;
+        var packId = staged.Target?.Id ?? store.NewPackId();
         var dir = store.PackDirectory(packId);
         Directory.CreateDirectory(dir);
         var target = Path.Combine(dir, TranslationPackStore.FileNameFor(staged.PackHash));
@@ -117,14 +130,13 @@ public sealed class PackInstaller
             File.Move(staged.StagingPath, target);
 
         staged.Committed = true;
-        store.WriteInstallRecord(packId, staged.PackHash);
 
-        if (staged.Fingerprint is not null)
-            configuration.PinnedPublisherKeys[packId] = staged.Fingerprint;
-        saveConfiguration();
-
+        // The key of the new file becomes the trusted one, which also moves
+        // the pin along an endorsed key rotation.
+        store.WriteInstallRecord(packId, staged.PackHash, staged.Fingerprint, staged.FeedUrl ?? staged.Target?.FeedUrl);
         store.Rescan();
-        log.Info($"Installed translation pack '{packId}' release {staged.Manifest.Sequence} ({staged.Trust}).");
+        log.Info($"Installed translation '{packId}' version {staged.Manifest.Version} ({staged.Trust}).");
+        return packId;
     }
 
     private static void CopyBounded(Stream source, Stream target, long limit)

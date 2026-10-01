@@ -4,22 +4,23 @@ namespace Harmonia.Packs;
 
 public enum PublisherTrustState
 {
-    // Signed by the key pinned for this pack id.
+    // Signed by the key the translation it updates trusts.
     Trusted,
 
-    // Signed by a new key that the pinned key endorsed.
+    // Signed by a new key that the trusted key endorsed.
     Rotated,
 
-    // Signed, and nothing is pinned for this pack id yet.
+    // Signed, and it updates no translation yet.
     FirstUse,
 
-    // Signed by a key other than the pinned one, without an endorsement.
+    // From a translation's feed, signed by a key other than the trusted one,
+    // without an endorsement.
     KeyChanged,
 
     Unsigned,
 }
 
-// Trust is pinned per pack id to a signing key fingerprint (feed-v1.md,
+// Each installed translation trusts one signing key fingerprint (feed-v1.md,
 // "Publisher trust"). Only Trusted and Rotated install without asking.
 public static class PublisherTrust
 {

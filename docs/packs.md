@@ -5,7 +5,7 @@ and owns the contract:
 
 - pack layout, source guard, signature block: Aeria `docs/formats/pack-v1.md`
 - update feed, release selection, publisher trust: Aeria `docs/formats/feed-v1.md`
-- the project's pack identity and publisher key fingerprint, which the feed
+- the project's pack settings and publisher key fingerprint, which the feed
   workflow publishes: Aeria `docs/formats/pack-settings-v1.md`
 
 This file documents only what Harmonia adds on top of those contracts.
@@ -14,16 +14,36 @@ This file documents only what Harmonia adds on top of those contracts.
 
 ```text
 <plugin-dir>/resources/packs/
-  <packId>/
+  <id>/                     one installed translation; 12 hex digits Harmonia
+                            chose when it was first installed
     <packHash hex>.hpk      installed pack, named by its content hash
-    installed.json          {"formatVersion": 1, "packHash": "sha256:<hex>"}
+    installed.json          {"formatVersion": 2, "packHash": "sha256:<hex>",
+                             "pinnedKey": "<64 hex>" | null,
+                             "feedUrl": "https://…" | null}
   .staging/                 downloads and imports waiting for a trust decision
 ```
 
-`installed.json` is written atomically and names the current file. A new
-release is installed next to the old file; the old file stays mapped until the
-game restarts and is removed on the next start, together with `.staging/`.
-A folder without a valid `installed.json` is listed as invalid.
+Packs carry no identifier, so `<id>` is Harmonia's own name for the
+translation, used by `ActivePackId`. `installed.json` is written atomically and
+names the current file, the key the translation trusts (`null` for an unsigned
+one), and the feed it updates from. A new release is installed next to the old
+file; the old file stays mapped until the game restarts and is removed on the
+next start, together with `.staging/`. A folder without a valid
+`installed.json` (including the version 1 records of earlier Harmonia builds)
+is listed as invalid.
+
+Which translation a pack updates:
+
+- from a feed: the translation whose `feedUrl` is that feed;
+- from a file, signed: the translation whose pinned key signed it or endorsed
+  its key;
+- from a file, unsigned: the unsigned translation with the same `title` and
+  `team.name`;
+- otherwise a new translation.
+
+A translation installed from a file is connected to a feed (*Set up* updates)
+only when the feed's `publisherKeyFingerprint` is the translation's pinned
+key.
 
 ## Verification
 
@@ -41,12 +61,11 @@ ever applied to the wrong text.
 
 ## Publisher trust
 
-Packs are signed by their publisher. The first install of a pack id shows the
-key fingerprint and asks the player to confirm it; the key is then pinned
-(`PinnedPublisherKeys`), and feeds install only packs signed by that key or one
-it endorsed. Unsigned packs and packs signed by another key can be imported
-from a file only, after an explicit confirmation. Installing a lower release
-sequence is manual only.
+Packs are signed by their publisher. A new translation shows its key
+fingerprint and asks the player to confirm it; the key is then pinned in its
+`installed.json`, and its feed installs only packs signed by that key or one it
+endorsed. Unsigned packs can be imported from a file only, after an explicit
+confirmation. Installing a lower version is manual only.
 
 ## Font glyphs
 
@@ -99,10 +118,10 @@ next start.
 
 | Field | Meaning |
 | --- | --- |
-| `PinnedPublisherKeys` | packId → trusted signing key fingerprint |
-| `ApplyUnreviewedTranslations` | apply cells exported as unreviewed (default on) |
+| `ActivePackId` | the installed translation (`<id>`) applied at the next start |
+| `UpdateFeedUrls` | the feeds Harmonia checks |
 | `FollowTestingChannel` | accept `testing` releases from feeds (default off) |
-| `NotifiedPackVersions` | packId → last release sequence the user was notified about |
+| `NotifiedFeedVersions` | feed URL → last version the user was notified about |
 | `LastSeenGameVersion` | a change triggers an immediate feed check |
 
 ## Runtime

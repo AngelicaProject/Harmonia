@@ -22,10 +22,6 @@ internal sealed partial class MainWindow
     private readonly HashSet<string> fontsOpen = new(StringComparer.Ordinal);
     private readonly HashSet<string> licenseOpen = new(StringComparer.Ordinal);
 
-    // Pack id of every feed seen so far. A status being rechecked or
-    // downloaded has no pack id yet, and the card must not jump meanwhile.
-    private readonly Dictionary<string, string> feedPacks = new(StringComparer.OrdinalIgnoreCase);
-
     private string? feedSetupFor;
     private string feedSetupUrl = string.Empty;
     private string? feedSetupError;
@@ -35,12 +31,6 @@ internal sealed partial class MainWindow
 
     private void DrawTranslations()
     {
-        foreach (var feed in feedState.Feeds)
-        {
-            if (feed.PackId is { } id)
-                feedPacks[feed.Url] = id;
-        }
-
         DrawHero();
         DrawNotices();
 
@@ -51,17 +41,16 @@ internal sealed partial class MainWindow
         var any = false;
         foreach (var pack in OrderedPacks())
         {
-            DrawPackCard(pack, FeedFor(pack.Id));
+            DrawPackCard(pack, FeedFor(pack));
             any = true;
         }
 
         foreach (var url in configuration.UpdateFeedUrls.ToArray())
         {
-            var status = FeedStatusFor(url);
-            if ((status?.PackId ?? feedPacks.GetValueOrDefault(url)) is { } id && packs.TryGet(id) is not null)
+            if (packs.FindByFeed(url) is not null)
                 continue;
 
-            DrawFeedCard(url, status);
+            DrawFeedCard(url, FeedStatusFor(url));
             any = true;
         }
 
@@ -131,7 +120,7 @@ internal sealed partial class MainWindow
         {
             var pack = packs.TryGet(runtime.Info.PackId);
             var languages = pack?.Manifest is { } m
-                ? $" · {Ui.LanguageName(m.SourceLanguage)} → {Ui.LanguageName(m.TargetLanguage)}"
+                ? $" · {Ui.LanguageName(m.GameLanguage)} → {Ui.LanguageName(m.Language)}"
                 : string.Empty;
             return (FontAwesomeIcon.CheckCircle, Ui.Good, Lang.T("hero.on_title"), runtime.Info.Title + languages);
         }
@@ -258,15 +247,11 @@ internal sealed partial class MainWindow
             .ThenByDescending(p => string.Equals(p.Id, info.LoadedPackId, StringComparison.Ordinal))
             .ThenBy(p => p.DisplayName, StringComparer.CurrentCultureIgnoreCase);
 
-    private (string Url, FeedStatus? Status)? FeedFor(string packId)
+    // The feed the translation updates from, while the player follows it.
+    private (string Url, FeedStatus? Status)? FeedFor(TranslationPack pack)
     {
-        foreach (var url in configuration.UpdateFeedUrls)
-        {
-            if (feedPacks.TryGetValue(url, out var id) && string.Equals(id, packId, StringComparison.Ordinal))
-                return (url, FeedStatusFor(url));
-        }
-
-        return null;
+        var url = configuration.UpdateFeedUrls.FirstOrDefault(u => string.Equals(u, pack.FeedUrl, StringComparison.OrdinalIgnoreCase));
+        return url is null ? null : (url, FeedStatusFor(url));
     }
 
     private FeedStatus? FeedStatusFor(string url) =>
@@ -300,7 +285,7 @@ internal sealed partial class MainWindow
         }
 
         if (manifest is not null)
-            Ui.Hint($"{manifest.PublisherName} · {Ui.LanguageName(manifest.SourceLanguage)} → {Ui.LanguageName(manifest.TargetLanguage)} · {Lang.T("card.version", manifest.Version)}");
+            Ui.Hint($"{manifest.TeamName} · {Ui.LanguageName(manifest.GameLanguage)} → {Ui.LanguageName(manifest.Language)} · {Lang.T("card.version", manifest.Version)}");
 
         // Why it cannot be used, or what the player should know.
         if (manifest is null)
@@ -311,7 +296,7 @@ internal sealed partial class MainWindow
         {
             if (!pack.LanguageCompatible)
                 Ui.IconText(FontAwesomeIcon.ExclamationTriangle, Ui.Warn,
-                    Lang.T("card.wrong_language", Ui.LanguageName(manifest.SourceLanguage), Ui.LanguageName(packs.ClientLanguage)));
+                    Lang.T("card.wrong_language", Ui.LanguageName(manifest.GameLanguage), Ui.LanguageName(packs.ClientLanguage)));
             if (!pack.PluginCompatible)
                 Ui.IconText(FontAwesomeIcon.ExclamationTriangle, Ui.Warn, Lang.T("card.old_plugin", manifest.MinHarmonia));
             if (pack.GameVersionMatches == false && pack.IsSelectable)
@@ -397,18 +382,17 @@ internal sealed partial class MainWindow
         const float labelWidth = 190;
         if (pack.Manifest is { } manifest)
         {
-            Ui.Row(Lang.T("details.publisher"), manifest.PublisherName, labelWidth);
-            if (!string.IsNullOrWhiteSpace(manifest.PublisherUrl))
-                Ui.Row(Lang.T("details.website"), manifest.PublisherUrl, labelWidth);
+            Ui.Row(Lang.T("details.team"), manifest.TeamName, labelWidth);
+            if (manifest.Authors.Count > 0)
+                Ui.Row(Lang.T("details.authors"), string.Join(", ", manifest.Authors), labelWidth);
+            if (!string.IsNullOrWhiteSpace(manifest.TeamUrl))
+                Ui.Row(Lang.T("details.website"), manifest.TeamUrl, labelWidth);
             if (!string.IsNullOrWhiteSpace(manifest.License))
                 Ui.Row(Lang.T("details.license"), manifest.License, labelWidth);
             Ui.Row(Lang.T("details.version"), manifest.Channel == "testing"
-                ? Lang.T("details.version_testing", manifest.Version, manifest.Sequence)
-                : Lang.T("details.version_value", manifest.Version, manifest.Sequence), labelWidth);
-            Ui.Row(Lang.T("details.game"), manifest.SourceGameVersion, labelWidth);
-            Ui.Row(Lang.T("details.content"), manifest.ContentPolicy == HpkContentPolicy.Reviewed
-                ? Lang.T("details.content_reviewed")
-                : Lang.T("details.content_all"), labelWidth);
+                ? Lang.T("details.version_testing", manifest.Version)
+                : manifest.Version, labelWidth);
+            Ui.Row(Lang.T("details.game"), manifest.GameVersion, labelWidth);
             Ui.Row(Lang.T("details.key"), pack.PublisherFingerprint is { } fingerprint
                 ? HpkSignature.ShortFingerprint(fingerprint)
                 : Lang.T("details.unsigned"), labelWidth);
@@ -418,7 +402,6 @@ internal sealed partial class MainWindow
             Ui.Row(Lang.T("details.reason"), pack.InvalidReason ?? "?", labelWidth);
         }
 
-        Ui.Row(Lang.T("details.id"), pack.Id, labelWidth);
         Ui.Row(Lang.T("details.updates"), feedUrl is null ? Lang.T("details.no_updates")
             : feed is null ? Lang.T("feed.not_checked")
             : FeedStateText(feed), labelWidth);
@@ -495,8 +478,8 @@ internal sealed partial class MainWindow
             return;
         }
 
-        // The link is saved only when it is a feed of this very pack;
-        // anything else would show up as a separate, unrelated translation.
+        // The link is saved only when its publisher key is the key this
+        // translation trusts; anything else is another translation.
         if (submit && !probing && !string.IsNullOrWhiteSpace(feedSetupUrl))
         {
             var url = feedSetupUrl.Trim();
@@ -513,18 +496,34 @@ internal sealed partial class MainWindow
             setupProbe = null;
             if (!done.IsCompletedSuccessfully)
                 feedSetupError = FeedErrors.Describe(done.Exception?.GetBaseException() ?? new TaskCanceledException());
-            else if (!string.Equals(done.Result.PackId, pack.Id, StringComparison.Ordinal))
-                feedSetupError = Lang.T("link.other_pack", done.Result.Title ?? done.Result.PackId);
-            else if (feeds.AddFeed(setupProbeUrl, out var errorKey))
-                feedSetupFor = null;
+            else if (pack.PinnedKey is null || !string.Equals(done.Result.PublisherKeyFingerprint, pack.PinnedKey, StringComparison.Ordinal))
+                feedSetupError = Lang.T("link.other_pack", done.Result.Title ?? setupProbeUrl);
             else
-                feedSetupError = Lang.T(errorKey);
+                LinkFeed(pack, setupProbeUrl);
         }
 
         if (setupProbe is not null)
             Ui.IconText(FontAwesomeIcon.HourglassHalf, Ui.Muted, Lang.T("link.checking"));
         else if (feedSetupError is not null)
             Ui.IconText(FontAwesomeIcon.TimesCircle, Ui.Bad, feedSetupError);
+    }
+
+    private void LinkFeed(TranslationPack pack, string url)
+    {
+        try
+        {
+            packs.LinkFeed(pack.Id, url);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            feedSetupError = ex.Message;
+            return;
+        }
+
+        if (feeds.AddFeed(url, out var errorKey))
+            feedSetupFor = null;
+        else
+            feedSetupError = Lang.T(errorKey);
     }
 
     // Font attribution the licenses require: one row in the details, a
@@ -582,6 +581,7 @@ internal sealed partial class MainWindow
         FeedPackStatus.UpdateAvailable or FeedPackStatus.NeedsTrust => Lang.T("feed.available", feed.RemoteVersion ?? "?"),
         FeedPackStatus.Downloading => Lang.T("feed.downloading"),
         FeedPackStatus.Incompatible => Lang.T("feed.incompatible"),
+        FeedPackStatus.PluginTooOld => Lang.T("feed.plugin_too_old"),
         FeedPackStatus.Error => Lang.T("feed.error"),
         _ => Lang.T("feed.not_checked"),
     };
@@ -592,7 +592,7 @@ internal sealed partial class MainWindow
     {
         using var card = Ui.BeginCard("feed_" + url);
 
-        ImGui.TextUnformatted(status?.Title ?? status?.PackId ?? Lang.T("feed.new_title"));
+        ImGui.TextUnformatted(status?.Title ?? Lang.T("feed.new_title"));
         ImGui.SameLine();
         Ui.Badge(Lang.T("card.not_installed"), Ui.Muted);
         Ui.Hint(url);
@@ -610,6 +610,9 @@ internal sealed partial class MainWindow
             case FeedPackStatus.Incompatible:
                 Ui.IconText(FontAwesomeIcon.ExclamationTriangle, Ui.Warn, Lang.T("feed.incompatible_long"));
                 break;
+            case FeedPackStatus.PluginTooOld:
+                Ui.IconText(FontAwesomeIcon.ExclamationTriangle, Ui.Warn, Lang.T("feed.plugin_too_old_long"));
+                break;
             default:
                 DrawFeedProgress(card, status, installing, available,
                     Lang.T("feed.ready", status.RemoteVersion ?? "?"), Lang.T("feed.failed", status.Error ?? "?"));
@@ -618,7 +621,7 @@ internal sealed partial class MainWindow
 
         Ui.Gap(4);
         if (available && Ui.PrimaryButton(FontAwesomeIcon.Download, Lang.T("card.install")))
-            StartFeedInstall(status!, status!.Title ?? status.PackId ?? url);
+            StartFeedInstall(status!, status!.Title ?? url);
 
         var remove = Lang.T("card.remove");
         Ui.AlignRight(Ui.ButtonWidth(FontAwesomeIcon.TrashAlt, remove), card.Right, available);

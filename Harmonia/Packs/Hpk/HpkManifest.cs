@@ -5,35 +5,31 @@ using Newtonsoft.Json.Linq;
 
 namespace Harmonia.Packs.Hpk;
 
-public enum HpkContentPolicy
-{
-    Reviewed,
-    All,
-}
-
-public sealed record HpkCounts(long Sheets, long Rows, long Cells, long ReviewedCells, long Strings);
-
 // The MANIFEST section. Parsing is strict: the pack is a compiled artifact,
 // so an unexpected or missing field means a writer bug or tampering, never a
 // vendor extension.
 public sealed partial class HpkManifest
 {
-    public string PackId { get; private init; } = string.Empty;
     public string Title { get; private init; } = string.Empty;
-    public string PublisherName { get; private init; } = string.Empty;
-    public string? PublisherUrl { get; private init; }
+    public string TeamName { get; private init; } = string.Empty;
+    public string? TeamUrl { get; private init; }
+    public IReadOnlyList<string> Authors { get; private init; } = [];
     public string? License { get; private init; }
-    public long Sequence { get; private init; }
+
+    // YYYY.MM.DD.NNNN; see PackVersion.
     public string Version { get; private init; } = string.Empty;
     public string Channel { get; private init; } = string.Empty;
-    public string TargetLanguage { get; private init; } = string.Empty;
-    public string SourceLanguage { get; private init; } = string.Empty;
-    public string SourceGameVersion { get; private init; } = string.Empty;
-    public HpkContentPolicy ContentPolicy { get; private init; }
-    public string ProjectCommit { get; private init; } = string.Empty;
-    public string ExporterAeria { get; private init; } = string.Empty;
+
+    // The language of the translations.
+    public string Language { get; private init; } = string.Empty;
+
+    // The client language the pack translates from, and the game build it
+    // was made for.
+    public string GameLanguage { get; private init; } = string.Empty;
+    public string GameVersion { get; private init; } = string.Empty;
+    public string Aeria { get; private init; } = string.Empty;
+    public string Commit { get; private init; } = string.Empty;
     public Version MinHarmonia { get; private init; } = new(0, 0);
-    public HpkCounts Counts { get; private init; } = new(0, 0, 0, 0, 0);
 
     public static HpkManifest Parse(ReadOnlySpan<byte> utf8)
     {
@@ -65,62 +61,55 @@ public sealed partial class HpkManifest
             throw new HpkFormatException("Manifest is not valid JSON: " + ex.Message);
         }
 
-        Fields(root, "manifest", "packId", "title", "publisher", "license", "release", "target", "source",
-            "contentPolicy", "project", "exporter", "minHarmonia", "counts");
-        var publisher = Obj(root, "publisher", "name", "url");
-        var release = Obj(root, "release", "sequence", "version", "channel");
-        var target = Obj(root, "target", "language");
-        var source = Obj(root, "source", "language", "gameVersion");
-        var project = Obj(root, "project", "commit");
-        var exporter = Obj(root, "exporter", "aeria");
-        var counts = Obj(root, "counts", "sheets", "rows", "cells", "reviewedCells", "strings");
+        Fields(root, "manifest", "title", "team", "authors", "license", "version", "channel", "language",
+            "game", "built", "minHarmonia");
+        var team = Obj(root, "team", "name", "url");
+        var game = Obj(root, "game", "language", "version");
+        var built = Obj(root, "built", "aeria", "commit");
 
-        var packId = Str(root, "packId");
-        if (!PackIdPattern().IsMatch(packId))
-            throw new HpkFormatException("Invalid packId.");
+        var version = Str(root, "version");
+        if (!PackVersion.IsValid(version))
+            throw new HpkFormatException("Invalid version.");
 
-        var channel = Str(release, "channel");
+        var channel = Str(root, "channel");
         if (channel is not ("stable" or "testing"))
-            throw new HpkFormatException("Invalid release.channel.");
-
-        var policy = Str(root, "contentPolicy") switch
-        {
-            "reviewed" => HpkContentPolicy.Reviewed,
-            "all" => HpkContentPolicy.All,
-            _ => throw new HpkFormatException("Invalid contentPolicy."),
-        };
-
-        var sequence = Int(release, "sequence");
-        if (sequence < 1)
-            throw new HpkFormatException("release.sequence must be positive.");
+            throw new HpkFormatException("Invalid channel.");
 
         if (!System.Version.TryParse(Str(root, "minHarmonia"), out var minHarmonia))
             throw new HpkFormatException("Invalid minHarmonia.");
 
-        var commit = Str(project, "commit");
+        var commit = Str(built, "commit");
         if (!HexPattern().IsMatch(commit) || commit.Length != 40)
-            throw new HpkFormatException("Invalid project.commit.");
+            throw new HpkFormatException("Invalid built.commit.");
+
+        if (root["authors"] is not JArray authorList)
+            throw new HpkFormatException("Field 'authors' must be an array.");
+        var authors = new List<string>();
+        foreach (var author in authorList)
+        {
+            if (author is not JValue { Type: JTokenType.String } value || string.IsNullOrWhiteSpace((string?)value))
+                throw new HpkFormatException("Every author must be a non-empty string.");
+            var name = (string)value!;
+            if (authors.Contains(name, StringComparer.Ordinal))
+                throw new HpkFormatException("An author is listed twice.");
+            authors.Add(name);
+        }
 
         return new HpkManifest
         {
-            PackId = packId,
             Title = Str(root, "title"),
-            PublisherName = Str(publisher, "name"),
-            PublisherUrl = OptStr(publisher, "url"),
+            TeamName = Str(team, "name"),
+            TeamUrl = OptStr(team, "url"),
+            Authors = authors,
             License = OptStr(root, "license"),
-            Sequence = sequence,
-            Version = Str(release, "version"),
+            Version = version,
             Channel = channel,
-            TargetLanguage = Str(target, "language"),
-            SourceLanguage = Str(source, "language"),
-            SourceGameVersion = Str(source, "gameVersion"),
-            ContentPolicy = policy,
-            ProjectCommit = commit,
-            ExporterAeria = Str(exporter, "aeria"),
+            Language = Str(root, "language"),
+            GameLanguage = Str(game, "language"),
+            GameVersion = Str(game, "version"),
+            Aeria = Str(built, "aeria"),
+            Commit = commit,
             MinHarmonia = minHarmonia,
-            Counts = new HpkCounts(
-                Int(counts, "sheets"), Int(counts, "rows"), Int(counts, "cells"),
-                Int(counts, "reviewedCells"), Int(counts, "strings")),
         };
     }
 
@@ -176,9 +165,6 @@ public sealed partial class HpkManifest
 
         return number;
     }
-
-    [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,63}$")]
-    private static partial Regex PackIdPattern();
 
     [GeneratedRegex("^[0-9a-f]+$")]
     private static partial Regex HexPattern();

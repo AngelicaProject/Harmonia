@@ -19,11 +19,10 @@ public readonly record struct HpkLayoutColumn(uint ColumnIndex, uint Offset);
 
 public readonly record struct HpkRow(long FirstCell, int CellCount);
 
-public readonly unsafe struct HpkCell(byte* @string, int length, byte state, ulong sourceGuard)
+public readonly unsafe struct HpkCell(byte* @string, int length, ulong sourceGuard)
 {
     public byte* String { get; } = @string;
     public int Length { get; } = length;
-    public byte State { get; } = state;
     public ulong SourceGuard { get; } = sourceGuard;
 }
 
@@ -213,7 +212,6 @@ public sealed unsafe class HpkFile : IDisposable
         return new HpkCell(
             data + stringsOffset + U32(at + 8),
             (int)U32(at + 4),
-            Span(at + 2, 1)[0],
             BinaryPrimitives.ReadUInt64LittleEndian(Span(at + 16, HpkFormat.GuardSize)));
     }
 
@@ -340,10 +338,6 @@ public sealed unsafe class HpkFile : IDisposable
         layoutCount = Records(sections[HpkFormat.KindLayout].Length, HpkFormat.LayoutRecordSize, "LAYOUT");
         rowCount = Records(sections[HpkFormat.KindRows].Length, HpkFormat.RowRecordSize, "ROWS");
         cellCount = Records(sections[HpkFormat.KindCells].Length, HpkFormat.CellRecordSize, "CELLS");
-
-        var counts = Manifest.Counts;
-        if (counts.Sheets != sheetCount || counts.Rows != rowCount || counts.Cells != cellCount)
-            throw new HpkFormatException("Manifest counts do not match the pack sections.");
     }
 
     private static int Records(long length, int size, string name)
@@ -424,9 +418,7 @@ public sealed unsafe class HpkFile : IDisposable
 
     private void ValidateRecords()
     {
-        long reviewed = 0;
         var strings = new Dictionary<uint, int>();
-        var policyReviewed = Manifest.ContentPolicy == HpkContentPolicy.Reviewed;
 
         for (var sheet = 0; sheet < sheetCount; sheet++)
         {
@@ -466,19 +458,13 @@ public sealed unsafe class HpkFile : IDisposable
                 {
                     var at = cellsOffset + (c * HpkFormat.CellRecordSize);
                     var ordinal = U16(at);
-                    var state = Span(at + 2, 1)[0];
                     var length = U32(at + 4);
                     var offset = U32(at + 8);
                     if (ordinal <= previousOrdinal || ordinal >= layoutCountForSheet ||
-                        state is not (HpkFormat.StateReviewed or HpkFormat.StateUnreviewed) ||
-                        (policyReviewed && state != HpkFormat.StateReviewed) ||
-                        Span(at + 3, 1)[0] != 0 || U32(at + 12) != 0 ||
+                        !IsZero(at + 2, 2) || U32(at + 12) != 0 ||
                         length is 0 or > HpkFormat.MaxStringLength || offset + (long)length + 1 > stringsLength)
                         throw new HpkFormatException($"Invalid cell in row {rowId}/{subrow} of sheet '{sheetNames[sheet]}'.");
                     previousOrdinal = ordinal;
-
-                    if (state == HpkFormat.StateReviewed)
-                        reviewed++;
 
                     if (strings.TryGetValue(offset, out var knownLength))
                     {
@@ -506,8 +492,6 @@ public sealed unsafe class HpkFile : IDisposable
 
         if (cursor != stringsLength)
             throw new HpkFormatException("STRINGS contains unreferenced bytes.");
-        if (reviewed != Manifest.Counts.ReviewedCells || strings.Count != Manifest.Counts.Strings)
-            throw new HpkFormatException("Manifest counts do not match the pack content.");
     }
 
     private bool IsZero(long offset, int length)

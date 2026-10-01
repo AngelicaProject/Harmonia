@@ -9,9 +9,6 @@ public enum CellDecision
     // The running game's source string differs from the one the translation
     // was made for; the original text stays.
     SourceChanged,
-
-    // Exported as unreviewed while the player turned those off.
-    Unreviewed,
 }
 
 public sealed record PackRuntimeInfo(string PackId, string Title, string FilePath, int Sheets, int Cells);
@@ -20,7 +17,6 @@ public readonly record struct SheetStats(
     string SheetName,
     long Applied,
     long SourceChanged,
-    long Unreviewed,
     long RowsRebuilt,
     long RowsUnexpected,
     bool LayoutMismatch);
@@ -28,7 +24,6 @@ public readonly record struct SheetStats(
 public readonly record struct RuntimeTotals(
     long Applied,
     long SourceChanged,
-    long Unreviewed,
     long RowsRebuilt,
     long RowsUnexpected,
     int LayoutMismatchSheets)
@@ -42,29 +37,26 @@ public readonly record struct RuntimeTotals(
 public sealed unsafe class TranslationRuntime : IDisposable
 {
     private readonly HpkFile pack;
-    private readonly bool applyUnreviewed;
     private readonly long[] applied;
     private readonly long[] changed;
-    private readonly long[] unreviewed;
     private readonly long[] rebuilt;
     private readonly long[] unexpected;
     private readonly int[] layoutMismatch;
 
-    public TranslationRuntime(HpkFile pack, bool applyUnreviewed, string filePath)
+    // packId is the installed translation's name in the pack store.
+    public TranslationRuntime(HpkFile pack, string packId, string filePath)
     {
         if (pack.Mode != HpkOpenMode.Full)
             throw new ArgumentException("Runtime packs must be fully verified.", nameof(pack));
 
         this.pack = pack;
-        this.applyUnreviewed = applyUnreviewed;
         var sheets = pack.SheetCount;
         applied = new long[sheets];
         changed = new long[sheets];
-        unreviewed = new long[sheets];
         rebuilt = new long[sheets];
         unexpected = new long[sheets];
         layoutMismatch = new int[sheets];
-        Info = new PackRuntimeInfo(pack.Manifest.PackId, pack.Manifest.Title, filePath, pack.SheetCount, pack.CellCount);
+        Info = new PackRuntimeInfo(packId, pack.Manifest.Title, filePath, pack.SheetCount, pack.CellCount);
     }
 
     public PackRuntimeInfo Info { get; }
@@ -101,12 +93,6 @@ public sealed unsafe class TranslationRuntime : IDisposable
             return CellDecision.SourceChanged;
         }
 
-        if (cell.State != HpkFormat.StateReviewed && !applyUnreviewed)
-        {
-            Interlocked.Increment(ref unreviewed[sheet]);
-            return CellDecision.Unreviewed;
-        }
-
         Interlocked.Increment(ref applied[sheet]);
         return CellDecision.Applied;
     }
@@ -118,19 +104,18 @@ public sealed unsafe class TranslationRuntime : IDisposable
 
     public RuntimeTotals GetTotals()
     {
-        long a = 0, c = 0, u = 0, r = 0, x = 0;
+        long a = 0, c = 0, r = 0, x = 0;
         var mismatched = 0;
         for (var i = 0; i < applied.Length; i++)
         {
             a += Interlocked.Read(ref applied[i]);
             c += Interlocked.Read(ref changed[i]);
-            u += Interlocked.Read(ref unreviewed[i]);
             r += Interlocked.Read(ref rebuilt[i]);
             x += Interlocked.Read(ref unexpected[i]);
             mismatched += Volatile.Read(ref layoutMismatch[i]);
         }
 
-        return new RuntimeTotals(a, c, u, r, x, mismatched);
+        return new RuntimeTotals(a, c, r, x, mismatched);
     }
 
     // Sheets that were touched at runtime, in pack order.
@@ -143,11 +128,10 @@ public sealed unsafe class TranslationRuntime : IDisposable
                 pack.SheetNames[i],
                 Interlocked.Read(ref applied[i]),
                 Interlocked.Read(ref changed[i]),
-                Interlocked.Read(ref unreviewed[i]),
                 Interlocked.Read(ref rebuilt[i]),
                 Interlocked.Read(ref unexpected[i]),
                 Volatile.Read(ref layoutMismatch[i]) != 0);
-            if (stats.Applied + stats.SourceChanged + stats.Unreviewed + stats.RowsUnexpected != 0 || stats.LayoutMismatch)
+            if (stats.Applied + stats.SourceChanged + stats.RowsUnexpected != 0 || stats.LayoutMismatch)
                 result.Add(stats);
         }
 

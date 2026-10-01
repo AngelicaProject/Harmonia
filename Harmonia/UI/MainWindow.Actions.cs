@@ -205,8 +205,7 @@ internal sealed partial class MainWindow
     {
         try
         {
-            installer.Commit(staged, trustConfirmed);
-            var packId = staged.Manifest.PackId;
+            var packId = installer.Commit(staged, trustConfirmed);
             if (string.Equals(packId, info.LoadedPackId, StringComparison.Ordinal))
                 session.IsRestartRequired = true;
 
@@ -265,7 +264,7 @@ internal sealed partial class MainWindow
             }
             else if (status is { Status: FeedPackStatus.NeedsTrust, TrustFingerprint: not null })
             {
-                StartFeedInstall(status, status.Title ?? status.PackId ?? url);
+                StartFeedInstall(status, status.Title ?? url);
             }
         }
 
@@ -276,8 +275,8 @@ internal sealed partial class MainWindow
                 continue;
 
             autoInstall.Remove(url);
-            if (status.Status is FeedPackStatus.UpdateAvailable or FeedPackStatus.NeedsTrust && packs.TryGet(status.PackId) is null)
-                StartFeedInstall(status, status.Title ?? status.PackId ?? url);
+            if (status.Status is FeedPackStatus.UpdateAvailable or FeedPackStatus.NeedsTrust && status.PackId is null)
+                StartFeedInstall(status, status.Title ?? url);
         }
     }
 
@@ -319,7 +318,7 @@ internal sealed partial class MainWindow
                 Key(fingerprint);
                 break;
             case PublisherTrustState.KeyChanged:
-                configuration.PinnedPublisherKeys.TryGetValue(staged.Manifest.PackId, out var pinned);
+                var pinned = staged.Target?.PinnedKey;
                 Ui.IconText(FontAwesomeIcon.ExclamationTriangle, Ui.Warn, Lang.T("trust.key_changed", name));
                 Ui.Gap(4);
                 Ui.Row(Lang.T("trust.old_key"), pinned is null ? "?" : HpkSignature.ShortFingerprint(pinned), 130);
@@ -333,7 +332,7 @@ internal sealed partial class MainWindow
         if (staged.IsDowngrade)
         {
             Ui.Gap(4);
-            Ui.IconText(FontAwesomeIcon.History, Ui.Warn, Lang.T("trust.downgrade", staged.Manifest.Version, staged.Manifest.Sequence, staged.InstalledSequence ?? 0));
+            Ui.IconText(FontAwesomeIcon.History, Ui.Warn, Lang.T("trust.downgrade", staged.Manifest.Version, staged.InstalledVersion ?? "?"));
         }
 
         var choice = TrustButtons(Lang.T("trust.install"));

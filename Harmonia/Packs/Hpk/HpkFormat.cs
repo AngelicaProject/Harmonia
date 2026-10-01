@@ -26,8 +26,6 @@ public static class HpkFormat
     public const uint FirstOptionalKind = 0x10000;
     public const uint KindFonts = 0x10000;
 
-    public const byte StateReviewed = 1;
-    public const byte StateUnreviewed = 2;
 
     public const int MaxStringLength = 65535;
     public const int MaxManifestBytes = 1 << 20;

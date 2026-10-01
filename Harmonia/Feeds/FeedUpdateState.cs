@@ -7,10 +7,15 @@ public enum FeedPackStatus
     UpToDate,
     UpdateAvailable,
 
-    // The release is signed by a key not yet trusted for this pack id.
+    // The release is signed by a key the player has not trusted yet.
     NeedsTrust,
     Downloading,
+
+    // The feed has no release for the client language.
     Incompatible,
+
+    // The newest release needs a newer Harmonia.
+    PluginTooOld,
     Error,
 }
 
@@ -18,6 +23,7 @@ public sealed class FeedStatus
 {
     public string Url { get; init; } = string.Empty;
 
+    // The installed translation that updates from this feed.
     public string? PackId { get; set; }
 
     public string? Title { get; set; }

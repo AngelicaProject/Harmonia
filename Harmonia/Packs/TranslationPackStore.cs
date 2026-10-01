@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Harmonia.Packs.Hpk;
 using Newtonsoft.Json;
@@ -5,16 +6,19 @@ using Newtonsoft.Json.Linq;
 
 namespace Harmonia.Packs;
 
-// Installed packs live in <resources>/packs/<packId>/<hash>.hpk; the
-// per-pack installed.json names the current file. Only the active pack is
-// fully verified at load; listing uses metadata because every file was fully
-// verified when it was installed.
+// Installed translations live in <resources>/packs/<id>/<hash>.hpk, where
+// <id> is a name Harmonia gives the translation when it is first installed
+// (packs carry no identifier). The translation's installed.json names the
+// current file, the signing key it trusts, and the feed it updates from. Only
+// the active pack is fully verified at load; listing uses metadata because
+// every file was fully verified when it was installed.
 public sealed partial class TranslationPackStore
 {
     public const string PacksDirName = "packs";
     public const string InstalledFileName = "installed.json";
     public const string PackExtension = ".hpk";
     private const string StagingDirName = ".staging";
+    private const int InstallRecordVersion = 2;
 
     private readonly string resourcesDir;
     private readonly IHarmoniaLog log;
@@ -63,6 +67,26 @@ public sealed partial class TranslationPackStore
     public PackEnvironment Environment => new(ClientLanguage, pluginVersion, CurrentGameVersion);
 
     public static bool IsValidPackId(string? id) => id is not null && PackIdPattern().IsMatch(id);
+
+    // The translation that updates from this feed.
+    public TranslationPack? FindByFeed(string? url) =>
+        string.IsNullOrWhiteSpace(url)
+            ? null
+            : Packs.FirstOrDefault(p => string.Equals(p.FeedUrl, url.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    // The translation that trusts the key of this signature, or the key it
+    // endorsed.
+    public TranslationPack? FindByKey(HpkSignature signature) =>
+        Packs.FirstOrDefault(p => p.PinnedKey is { } pinned &&
+            (string.Equals(pinned, signature.Fingerprint, StringComparison.Ordinal) ||
+             string.Equals(pinned, signature.PreviousFingerprint, StringComparison.Ordinal)));
+
+    // An unsigned translation with the same title and team: an unsigned file
+    // replaces it rather than piling up beside it.
+    public TranslationPack? FindUnsigned(HpkManifest manifest) =>
+        Packs.FirstOrDefault(p => p.PinnedKey is null && p.Manifest is { } m &&
+            string.Equals(m.Title, manifest.Title, StringComparison.Ordinal) &&
+            string.Equals(m.TeamName, manifest.TeamName, StringComparison.Ordinal));
 
     // The game client may not expose its version yet when the plugin loads
     // first, so keep retrying (throttled) until it is known.
@@ -160,7 +184,7 @@ public sealed partial class TranslationPackStore
         try
         {
             var file = HpkFile.Open(pack.FilePath, HpkOpenMode.Full);
-            if (file.PackHashText != pack.PackHash || file.Manifest.PackId != pack.Id)
+            if (file.PackHashText != pack.PackHash)
             {
                 file.Dispose();
                 error = "Pack file does not match its install record.";
@@ -177,17 +201,41 @@ public sealed partial class TranslationPackStore
         }
     }
 
+    // Connects an installed translation to the feed it updates from.
+    public void LinkFeed(string packId, string url)
+    {
+        var pack = TryGet(packId) ?? throw new InvalidOperationException("No such translation.");
+        if (pack.PackHash is null)
+            throw new InvalidOperationException("The translation is not valid.");
+
+        WriteInstallRecord(packId, pack.PackHash, pack.PinnedKey, url.Trim());
+        Rescan();
+    }
+
     internal string PackDirectory(string packId) => Path.Combine(PacksDir, packId);
+
+    // A folder name for a translation installed for the first time.
+    internal string NewPackId()
+    {
+        while (true)
+        {
+            var id = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(6));
+            if (!Directory.Exists(PackDirectory(id)))
+                return id;
+        }
+    }
 
     internal static string FileNameFor(string packHash) => packHash["sha256:".Length..] + PackExtension;
 
-    internal void WriteInstallRecord(string packId, string packHash)
+    internal void WriteInstallRecord(string packId, string packHash, string? pinnedKey, string? feedUrl)
     {
         var dir = PackDirectory(packId);
         var record = new JObject
         {
-            ["formatVersion"] = 1,
+            ["formatVersion"] = InstallRecordVersion,
             ["packHash"] = packHash,
+            ["pinnedKey"] = pinnedKey,
+            ["feedUrl"] = feedUrl,
         };
         var temp = Path.Combine(dir, InstalledFileName + ".tmp");
         File.WriteAllText(temp, record.ToString(Formatting.Indented) + "\n");
@@ -214,13 +262,15 @@ public sealed partial class TranslationPackStore
         TranslationPack Invalid(string reason, string? filePath = null)
         {
             log.Warning("Translation pack '" + folderId + "' is invalid: " + reason);
-            return new TranslationPack(folderId, dir, filePath, null, null, null, reason, Environment);
+            return new TranslationPack(folderId, dir, filePath, null, null, null, null, null, reason, Environment);
         }
 
         if (!IsValidPackId(folderId))
-            return Invalid("Folder name is not a pack id.");
+            return Invalid("Folder name is not a translation id.");
 
         string packHash;
+        string? pinnedKey;
+        string? feedUrl;
         try
         {
             var recordPath = Path.Combine(dir, InstalledFileName);
@@ -228,12 +278,18 @@ public sealed partial class TranslationPackStore
                 return Invalid("Missing " + InstalledFileName + ".");
 
             var record = JObject.Parse(File.ReadAllText(recordPath));
-            if ((int?)record["formatVersion"] != 1 || record["packHash"]?.Type != JTokenType.String)
+            if ((int?)record["formatVersion"] != InstallRecordVersion || record["packHash"]?.Type != JTokenType.String ||
+                record["pinnedKey"]?.Type is not (JTokenType.String or JTokenType.Null) ||
+                record["feedUrl"]?.Type is not (JTokenType.String or JTokenType.Null))
                 return Invalid("Unsupported " + InstalledFileName + ".");
 
             packHash = (string)record["packHash"]!;
+            pinnedKey = (string?)record["pinnedKey"];
+            feedUrl = (string?)record["feedUrl"];
             if (!PackHashPattern().IsMatch(packHash))
                 return Invalid("Invalid pack hash in " + InstalledFileName + ".");
+            if (pinnedKey is not null && !FingerprintPattern().IsMatch(pinnedKey))
+                return Invalid("Invalid key in " + InstalledFileName + ".");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -246,11 +302,9 @@ public sealed partial class TranslationPackStore
             using var file = HpkFile.Open(filePath, HpkOpenMode.Metadata);
             if (file.PackHashText != packHash)
                 return Invalid("Pack file does not match its install record.", filePath);
-            if (file.Manifest.PackId != folderId)
-                return Invalid("Pack id '" + file.Manifest.PackId + "' does not match folder '" + folderId + "'.", filePath);
 
             return new TranslationPack(
-                folderId, dir, filePath, file.Manifest, packHash, file.Signature?.Fingerprint, null, Environment);
+                folderId, dir, filePath, file.Manifest, packHash, file.Signature?.Fingerprint, pinnedKey, feedUrl, null, Environment);
         }
         catch (Exception ex) when (ex is HpkFormatException or IOException or UnauthorizedAccessException)
         {
@@ -276,4 +330,7 @@ public sealed partial class TranslationPackStore
 
     [GeneratedRegex("^sha256:[0-9a-f]{64}$")]
     private static partial Regex PackHashPattern();
+
+    [GeneratedRegex("^[0-9a-f]{64}$")]
+    private static partial Regex FingerprintPattern();
 }

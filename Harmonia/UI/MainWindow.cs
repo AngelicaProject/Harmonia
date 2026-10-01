@@ -21,7 +21,6 @@ internal sealed record SessionInfo(
     ExcelRowHooks? Hooks,
     string? PackError,
     string? HookError,
-    bool ApplyUnreviewed,
     string PluginVersion,
     GameFonts? Fonts,
     bool Reloaded,
@@ -176,8 +175,7 @@ internal sealed partial class MainWindow : Window, IDisposable
 
     private bool RestartPending =>
         session.IsRestartRequired ||
-        !string.Equals(configuration.ActivePackId ?? string.Empty, info.LoadedPackId ?? string.Empty, StringComparison.Ordinal) ||
-        (info.LoadedPackId is not null && configuration.ApplyUnreviewedTranslations != info.ApplyUnreviewed);
+        !string.Equals(configuration.ActivePackId ?? string.Empty, info.LoadedPackId ?? string.Empty, StringComparison.Ordinal);
 
     private void Select(string packId)
     {

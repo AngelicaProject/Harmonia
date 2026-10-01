@@ -146,8 +146,8 @@ public sealed class FeedUpdateService : IDisposable
         return CheckSingleAsync(url, cancellationToken);
     }
 
-    // confirmedFingerprint is the key the user just accepted for a pack id
-    // with nothing pinned yet; it applies only if the pack is signed by it.
+    // confirmedFingerprint is the key the user just accepted for a feed with
+    // nothing installed yet; it applies only if the pack is signed by it.
     public async Task<bool> InstallUpdateAsync(string url, string? confirmedFingerprint = null, CancellationToken cancellationToken = default)
     {
         var status = new FeedStatus { Url = url, Status = FeedPackStatus.Checking };
@@ -163,7 +163,7 @@ public sealed class FeedUpdateService : IDisposable
                 return false;
             }
 
-            return await DownloadAndInstallAsync(feed, release, status, confirmedFingerprint, cancellationToken).ConfigureAwait(false);
+            return await DownloadAndInstallAsync(release, status, confirmedFingerprint, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -291,9 +291,9 @@ public sealed class FeedUpdateService : IDisposable
                 return status;
 
             if (allowDownload && configuration.AutoDownloadUpdates)
-                await DownloadAndInstallAsync(feed, release, status, null, cancellationToken).ConfigureAwait(false);
+                await DownloadAndInstallAsync(release, status, null, cancellationToken).ConfigureAwait(false);
             else
-                NotifyOnce(feed, release);
+                NotifyOnce(status, release);
 
             return status;
         }
@@ -310,31 +310,34 @@ public sealed class FeedUpdateService : IDisposable
 
     private FeedRelease? Evaluate(FeedDocument feed, FeedStatus status)
     {
-        status.PackId = feed.PackId;
+        var installed = packs.FindByFeed(status.Url);
+        status.PackId = installed?.Id;
         status.Title = feed.Title;
+        status.InstalledVersion = installed?.Manifest?.Version;
 
-        var installed = packs.TryGet(feed.PackId);
-        status.InstalledVersion = installed?.Manifest is { } m ? FormatRelease(m.Version, m.Sequence) : null;
-
-        var release = FeedReleaseSelector.SelectBest(
-            feed, packs.ClientLanguage, packs.CurrentGameVersion, packs.PluginVersion, configuration.FollowTestingChannel);
-        if (release is null)
+        var release = FeedReleaseSelector.SelectNewest(feed, configuration.FollowTestingChannel);
+        if (release is null || !PackCompatibility.IsLanguageCompatible(release.GameLanguage, packs.ClientLanguage))
         {
             status.Status = FeedPackStatus.Incompatible;
             return null;
         }
 
-        status.RemoteVersion = FormatRelease(release.Version, release.Sequence);
+        status.RemoteVersion = release.Version;
         status.Changelog = release.Changelog;
 
-        if (!FeedReleaseSelector.IsUpgrade(release, installed, packs.CurrentGameVersion))
+        if (!FeedReleaseSelector.IsUpgrade(release, installed))
         {
             status.Status = FeedPackStatus.UpToDate;
             return release;
         }
 
-        configuration.PinnedPublisherKeys.TryGetValue(feed.PackId, out var pinned);
-        status.TrustFingerprint = string.IsNullOrEmpty(pinned) ? feed.PublisherKeyFingerprint : null;
+        if (!PackCompatibility.IsPluginSupported(release.MinHarmonia, packs.PluginVersion))
+        {
+            status.Status = FeedPackStatus.PluginTooOld;
+            return null;
+        }
+
+        status.TrustFingerprint = installed?.PinnedKey is null ? feed.PublisherKeyFingerprint : null;
         status.Status = FeedPackStatus.UpdateAvailable;
         return release;
     }
@@ -377,7 +380,6 @@ public sealed class FeedUpdateService : IDisposable
     }
 
     private async Task<bool> DownloadAndInstallAsync(
-        FeedDocument feed,
         FeedRelease release,
         FeedStatus status,
         string? confirmedFingerprint,
@@ -406,12 +408,11 @@ public sealed class FeedUpdateService : IDisposable
                     throw new InvalidDataException("Downloaded file does not match the feed.");
             }
 
-            using var staged = installer.Stage(tempFile, download.Brotli ? download.UnpackedSize : download.Size);
+            using var staged = installer.Stage(tempFile, download.Brotli ? download.UnpackedSize : download.Size, status.Url);
             var manifest = staged.Manifest;
-            if (staged.PackHash != release.PackHash || manifest.PackId != feed.PackId ||
-                manifest.Sequence != release.Sequence ||
-                manifest.SourceGameVersion != release.SourceGameVersion ||
-                !string.Equals(manifest.SourceLanguage, release.SourceLanguage, StringComparison.OrdinalIgnoreCase))
+            if (staged.PackHash != release.PackHash || manifest.Version != release.Version ||
+                manifest.GameVersion != release.GameVersion ||
+                !string.Equals(manifest.GameLanguage, release.GameLanguage, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Downloaded pack does not match the feed entry.");
 
             var confirmed = staged.Trust == PublisherTrustState.FirstUse &&
@@ -434,20 +435,21 @@ public sealed class FeedUpdateService : IDisposable
                 return false;
             }
 
-            installer.Commit(staged, trustConfirmed: confirmed);
+            var packId = installer.Commit(staged, trustConfirmed: confirmed);
 
-            if (string.Equals(manifest.PackId, loadedPackId, StringComparison.Ordinal))
+            if (string.Equals(packId, loadedPackId, StringComparison.Ordinal))
                 session.IsRestartRequired = true;
 
-            configuration.NotifiedPackVersions[feed.PackId] = release.Sequence.ToString();
+            configuration.NotifiedFeedVersions[status.Url] = release.Version;
             saveConfiguration();
 
+            status.PackId = packId;
             status.Status = FeedPackStatus.UpToDate;
-            status.InstalledVersion = FormatRelease(manifest.Version, manifest.Sequence);
+            status.InstalledVersion = manifest.Version;
             status.TrustFingerprint = null;
             Publish(status);
 
-            notify("Harmonia", string.Format(Lang.T("updates.notify_installed"), feed.PackId, status.InstalledVersion));
+            notify("Harmonia", string.Format(Lang.T("updates.notify_installed"), manifest.Title, manifest.Version));
             return true;
         }
         catch (OperationCanceledException)
@@ -496,21 +498,18 @@ public sealed class FeedUpdateService : IDisposable
         }
     }
 
-    private void NotifyOnce(FeedDocument feed, FeedRelease release)
+    private void NotifyOnce(FeedStatus status, FeedRelease release)
     {
-        var sequence = release.Sequence.ToString();
-        if (configuration.NotifiedPackVersions.TryGetValue(feed.PackId, out var notified) &&
-            string.Equals(notified, sequence, StringComparison.Ordinal))
+        if (configuration.NotifiedFeedVersions.TryGetValue(status.Url, out var notified) &&
+            string.Equals(notified, release.Version, StringComparison.Ordinal))
             return;
 
-        configuration.NotifiedPackVersions[feed.PackId] = sequence;
+        configuration.NotifiedFeedVersions[status.Url] = release.Version;
         saveConfiguration();
 
         notify("Harmonia", string.Format(
-            Lang.T("updates.notify_available"), feed.PackId, FormatRelease(release.Version, release.Sequence)));
+            Lang.T("updates.notify_available"), status.Title ?? status.Url, release.Version));
     }
-
-    private static string FormatRelease(string version, long sequence) => version + " (#" + sequence + ")";
 
     private void Publish(FeedStatus status)
     {

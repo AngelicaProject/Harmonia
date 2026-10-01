@@ -35,20 +35,6 @@ internal sealed partial class MainWindow
             }
         }
 
-        using (Ui.BeginCard("translation"))
-        {
-            ImGui.TextDisabled(Lang.T("settings.section_translation"));
-            Ui.Gap(2);
-            var unreviewed = configuration.ApplyUnreviewedTranslations;
-            if (ImGui.Checkbox(Lang.T("settings.apply_unreviewed"), ref unreviewed))
-            {
-                configuration.ApplyUnreviewedTranslations = unreviewed;
-                save();
-            }
-
-            Hinted(Lang.T("settings.apply_unreviewed_hint"));
-        }
-
         using (var card = Ui.BeginCard("updates"))
         {
             ImGui.TextDisabled(Lang.T("settings.section_updates"));

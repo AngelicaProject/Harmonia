@@ -25,7 +25,10 @@ public sealed unsafe class HpkFileTests
     {
         using var file = HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full);
 
-        Assert.Equal("test-pack", file.Manifest.PackId);
+        Assert.Equal("Test pack", file.Manifest.Title);
+        Assert.Equal("2026.10.01.0001", file.Manifest.Version);
+        Assert.Equal(["Анна"], file.Manifest.Authors);
+        Assert.Equal(("en", "ru"), (file.Manifest.GameLanguage, file.Manifest.Language));
         Assert.Equal(2, file.SheetCount);
         Assert.Equal(5, file.CellCount);
         Assert.Null(file.Signature);
@@ -68,7 +71,6 @@ public sealed unsafe class HpkFileTests
     public void Identical_translations_are_stored_once()
     {
         using var file = HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full);
-        Assert.Equal(4, file.Manifest.Counts.Strings);
         file.TryGetSheet("Addon", out var addon);
         file.TryGetCell(addon, 1, 0, 0, out var a);
         file.TryGetCell(addon, 7, 0, 1, out var b);
@@ -94,10 +96,10 @@ public sealed unsafe class HpkFileTests
     [InlineData("subrow-in-default-sheet")]
     [InlineData("orphan-string-bytes")]
     [InlineData("malformed-sestring")]
-    [InlineData("unreviewed-under-reviewed-policy")]
     [InlineData("unknown-manifest-field")]
-    [InlineData("wrong-counts")]
-    [InlineData("bad-pack-id")]
+    [InlineData("old-manifest-field")]
+    [InlineData("bad-version")]
+    [InlineData("repeated-author")]
     public void Structurally_invalid_packs_are_rejected(string defect)
     {
         var builder = HpkBuilder.WithDefaultSheet();
@@ -123,17 +125,17 @@ public sealed unsafe class HpkFileTests
             case "malformed-sestring":
                 addon.Add(new HpkTestCell(9, 0, 0, "\u0002\u0013\u0002ÿ\u0003", "Broken"));
                 break;
-            case "unreviewed-under-reviewed-policy":
-                addon.Add(new HpkTestCell(9, 0, 0, "Черновик", "Draft", HpkFormat.StateUnreviewed));
-                break;
             case "unknown-manifest-field":
                 builder.EditManifest = m => m["extra"] = true;
                 break;
-            case "wrong-counts":
-                builder.EditManifest = m => m["counts"]!["cells"] = 99;
+            case "old-manifest-field":
+                builder.EditManifest = m => m["packId"] = "ru-main";
                 break;
-            case "bad-pack-id":
-                builder.PackId = "Bad Id";
+            case "bad-version":
+                builder.Version = "2026.10.1.0001";
+                break;
+            case "repeated-author":
+                builder.Authors.Add("Анна");
                 break;
         }
 
@@ -141,17 +143,17 @@ public sealed unsafe class HpkFileTests
     }
 
     [Fact]
-    public void Unreviewed_cells_are_allowed_under_the_all_policy()
+    public void Reserved_cell_bytes_must_be_zero()
     {
-        var builder = HpkBuilder.WithDefaultSheet();
-        builder.ContentPolicy = "all";
-        builder.Sheets[0].Cells.Add(new HpkTestCell(9, 0, 0, "Черновик", "Draft", HpkFormat.StateUnreviewed));
+        var bytes = HpkBuilder.WithDefaultSheet().Build(body =>
+        {
+            // Section 6 (CELLS) is the sixth table entry; byte 2 of its first record.
+            var entry = HpkFormat.HeaderSize + (5 * HpkFormat.SectionEntrySize);
+            var cells = (int)BinaryPrimitives.ReadUInt64LittleEndian(body.AsSpan(entry + 8));
+            body[cells + 2] = 1;
+        });
 
-        using var file = HpkFile.FromBytes(builder.Build(), HpkOpenMode.Full);
-        Assert.Equal(HpkContentPolicy.All, file.Manifest.ContentPolicy);
-        file.TryGetSheet("Addon", out var addon);
-        Assert.True(file.TryGetCell(addon, 9, 0, 0, out var cell));
-        Assert.Equal(HpkFormat.StateUnreviewed, cell.State);
+        Assert.Throws<HpkFormatException>(() => HpkFile.FromBytes(bytes, HpkOpenMode.Full));
     }
 
     [Fact]
@@ -181,7 +183,7 @@ public sealed unsafe class HpkFileTests
         var builder = HpkBuilder.WithDefaultSheet();
         builder.Signer = key;
         var signed = builder.Build();
-        builder.Sequence = 2;
+        builder.Version = "2026.10.01.0002";
         var other = builder.Build();
 
         // Graft the first pack's signature block onto the second pack's body.
@@ -217,7 +219,7 @@ public sealed unsafe class HpkFileTests
     [Fact]
     public void Manifest_rejects_duplicate_keys()
     {
-        var json = """{"packId":"a","packId":"b"}""";
+        var json = """{"title":"a","title":"b"}""";
         Assert.Throws<HpkFormatException>(() => HpkManifest.Parse(Encoding.UTF8.GetBytes(json)));
     }
 

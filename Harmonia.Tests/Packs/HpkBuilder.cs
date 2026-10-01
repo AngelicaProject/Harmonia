@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Harmonia.Tests.Packs;
 
-internal sealed record HpkTestCell(uint Row, ushort Subrow, ushort Ordinal, string Text, string Source, byte State = HpkFormat.StateReviewed);
+internal sealed record HpkTestCell(uint Row, ushort Subrow, ushort Ordinal, string Text, string Source);
 
 internal sealed record HpkTestSheet(string Name, bool Subrows, (uint Index, uint Offset)[] Layout, List<HpkTestCell> Cells);
 
@@ -14,15 +14,14 @@ internal sealed record HpkTestSheet(string Name, bool Subrows, (uint Index, uint
 // follows docs/formats/pack-v1.md rather than sharing code with the reader.
 internal sealed class HpkBuilder
 {
-    public string PackId { get; set; } = "test-pack";
     public string Title { get; set; } = "Test pack";
-    public long Sequence { get; set; } = 1;
-    public string Version { get; set; } = "1.0";
+    public string Team { get; set; } = "Test team";
+    public List<string> Authors { get; } = ["Анна"];
+    public string Version { get; set; } = "2026.10.01.0001";
     public string Channel { get; set; } = "stable";
-    public string SourceLanguage { get; set; } = "en";
-    public string TargetLanguage { get; set; } = "ru";
+    public string Language { get; set; } = "ru";
+    public string GameLanguage { get; set; } = "en";
     public string GameVersion { get; set; } = "2026.08.12.0000.0000";
-    public string ContentPolicy { get; set; } = "reviewed";
     public string MinHarmonia { get; set; } = "1.0.0";
     public List<HpkTestSheet> Sheets { get; } = [];
     public bool SortSheets { get; set; } = true;
@@ -65,7 +64,6 @@ internal sealed class HpkBuilder
         var stringOffsets = new Dictionary<string, uint>(StringComparer.Ordinal);
         long rowCount = 0;
         long cellCount = 0;
-        long reviewed = 0;
         uint layoutCursor = 0;
 
         foreach (var sheet in sheets)
@@ -117,8 +115,7 @@ internal sealed class HpkBuilder
                     }
 
                     Write16(cells, cell.Ordinal);
-                    cells.WriteByte(cell.State);
-                    cells.WriteByte(0);
+                    cells.Write(new byte[2]);
                     Write32(cells, (uint)text.Length);
                     Write32(cells, offset);
                     Write32(cells, 0);
@@ -126,8 +123,6 @@ internal sealed class HpkBuilder
                     BinaryPrimitives.WriteUInt64LittleEndian(guard, SourceGuard.Compute(Encoding.UTF8.GetBytes(cell.Source)));
                     cells.Write(guard);
                     cellCount++;
-                    if (cell.State == HpkFormat.StateReviewed)
-                        reviewed++;
                 }
             }
         }
@@ -136,29 +131,16 @@ internal sealed class HpkBuilder
 
         var manifest = new JObject
         {
-            ["packId"] = PackId,
             ["title"] = Title,
-            ["publisher"] = new JObject { ["name"] = "Test team", ["url"] = null },
+            ["team"] = new JObject { ["name"] = Team, ["url"] = null },
+            ["authors"] = new JArray(Authors),
             ["license"] = null,
-            ["release"] = new JObject { ["sequence"] = Sequence, ["version"] = Version, ["channel"] = Channel },
-            ["target"] = new JObject { ["language"] = TargetLanguage },
-            ["source"] = new JObject
-            {
-                ["language"] = SourceLanguage,
-                ["gameVersion"] = GameVersion,
-            },
-            ["contentPolicy"] = ContentPolicy,
-            ["project"] = new JObject { ["commit"] = new string('a', 40) },
-            ["exporter"] = new JObject { ["aeria"] = "0.0.0-test" },
+            ["version"] = Version,
+            ["channel"] = Channel,
+            ["language"] = Language,
+            ["game"] = new JObject { ["language"] = GameLanguage, ["version"] = GameVersion },
+            ["built"] = new JObject { ["aeria"] = "0.0.0-test", ["commit"] = new string('a', 40) },
             ["minHarmonia"] = MinHarmonia,
-            ["counts"] = new JObject
-            {
-                ["sheets"] = sheets.Count,
-                ["rows"] = rowCount,
-                ["cells"] = cellCount,
-                ["reviewedCells"] = reviewed,
-                ["strings"] = stringOffsets.Count,
-            },
         };
         EditManifest?.Invoke(manifest);
         var manifestBytes = Encoding.UTF8.GetBytes(manifest.ToString(Newtonsoft.Json.Formatting.Indented) + "\n");
