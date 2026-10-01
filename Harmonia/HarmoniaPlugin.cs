@@ -104,7 +104,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             else
             {
                 fonts = new GameFonts(pluginInterface, framework, scanner, dataManager, file, Path.Combine(pluginDir, ResourcesDirName, FontCacheDirName), log);
-                runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty);
+                runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
+                    new SheetFilter(configuration.UntranslatedSheets));
                 try
                 {
                     hooks = new ExcelRowHooks(interop, scanner, runtime, log);
@@ -145,7 +146,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feeds,
             feedState,
             session,
-            new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty),
+            new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
+                [.. configuration.UntranslatedSheets]),
             pluginInterface.UiBuilder);
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {

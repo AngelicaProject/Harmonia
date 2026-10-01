@@ -111,6 +111,20 @@ public class LocalizationDictionaryTests
     }
 
     [Fact]
+    public void Every_sheet_group_has_a_name_and_hint()
+    {
+        foreach (var code in Codes)
+        {
+            var dict = LoadEmbeddedDict(code);
+            foreach (var group in Harmonia.Packs.SheetGroups.All)
+            {
+                Assert.True(dict.ContainsKey("sheets." + group.Key), $"{code}: sheets.{group.Key}");
+                Assert.True(dict.ContainsKey("sheets." + group.Key + "_hint"), $"{code}: sheets.{group.Key}_hint");
+            }
+        }
+    }
+
+    [Fact]
     public void Dictionary_keys_are_not_leftover_placeholders()
     {
         // Values must never equal their own key (untranslated placeholder).

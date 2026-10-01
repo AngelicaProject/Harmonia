@@ -1,4 +1,5 @@
 using System.Text;
+using Harmonia.Packs;
 using Harmonia.Packs.Hpk;
 using Harmonia.Runtime;
 using Harmonia.Tests.Packs;
@@ -73,6 +74,42 @@ public sealed class TranslationRuntimeTests
 
         Assert.Equal((CellDecision.Applied, "Первая"), RuntimeProbe.Lookup(runtime, quest, 3, 0, 0, "First"));
         Assert.Equal((CellDecision.Applied, "Вторая"), RuntimeProbe.Lookup(runtime, quest, 3, 1, 0, "Second"));
+    }
+
+    [Fact]
+    public void Sheets_kept_in_the_game_language_are_not_bound()
+    {
+        using var runtime = new TranslationRuntime(
+            HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full), "test", "test.hpk",
+            new SheetFilter(["quest/*"]));
+
+        Assert.Equal(-1, runtime.BindSheet("quest/000/Test", true, [new StringColumn(1, 0)]));
+        Assert.True(runtime.BindSheet("Addon", false, AddonColumns) >= 0);
+        Assert.Equal(1, runtime.UntranslatedSheets);
+        Assert.Equal(0, runtime.GetTotals().LayoutMismatchSheets);
+    }
+
+    [Fact]
+    public void Sheet_filter_matches_names_and_folders()
+    {
+        var filter = new SheetFilter(["Item", "quest/*", " "]);
+
+        Assert.True(filter.Excludes("Item"));
+        Assert.False(filter.Excludes("ItemUICategory"));
+        Assert.True(filter.Excludes("quest/000/Test"));
+        Assert.True(filter.ExcludedByFolder("quest/000/Test"));
+        Assert.False(filter.Excludes("questlike"));
+        Assert.False(filter.Excludes("cut_scene/000/Test"));
+        Assert.Equal("cut_scene/*", SheetFilter.FolderOf("cut_scene/000/Test"));
+        Assert.Null(SheetFilter.FolderOf("Item"));
+        Assert.True(new SheetFilter(null).IsEmpty);
+    }
+
+    [Fact]
+    public void Sheet_groups_have_unique_entries()
+    {
+        var entries = SheetGroups.All.SelectMany(static g => g.Entries).ToList();
+        Assert.Equal(entries.Count, entries.Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]

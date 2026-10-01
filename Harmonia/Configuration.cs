@@ -23,6 +23,12 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public string ActivePackId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Sheets kept in the game's language: sheet names and folders
+    /// ("quest/*"). Applies at the next game start.
+    /// </summary>
+    public List<string> UntranslatedSheets { get; set; } = [];
+
     /// <summary>Feed URLs polled for new releases.</summary>
     public List<string> UpdateFeedUrls { get; set; } = [];
 

@@ -1,3 +1,4 @@
+using Harmonia.Packs;
 using Harmonia.Packs.Hpk;
 
 namespace Harmonia.Runtime;
@@ -37,14 +38,16 @@ public readonly record struct RuntimeTotals(
 public sealed unsafe class TranslationRuntime : IDisposable
 {
     private readonly HpkFile pack;
+    private readonly bool[] untranslated;
     private readonly long[] applied;
     private readonly long[] changed;
     private readonly long[] rebuilt;
     private readonly long[] unexpected;
     private readonly int[] layoutMismatch;
 
-    // packId is the installed translation's name in the pack store.
-    public TranslationRuntime(HpkFile pack, string packId, string filePath)
+    // packId is the installed translation's name in the pack store; the
+    // sheets the filter excludes stay in the game's language.
+    public TranslationRuntime(HpkFile pack, string packId, string filePath, SheetFilter? untranslatedSheets = null)
     {
         if (pack.Mode != HpkOpenMode.Full)
             throw new ArgumentException("Runtime packs must be fully verified.", nameof(pack));
@@ -56,16 +59,23 @@ public sealed unsafe class TranslationRuntime : IDisposable
         rebuilt = new long[sheets];
         unexpected = new long[sheets];
         layoutMismatch = new int[sheets];
+        untranslated = new bool[sheets];
+        for (var i = 0; i < sheets && untranslatedSheets is not null; i++)
+            untranslated[i] = untranslatedSheets.Excludes(pack.SheetNames[i]);
+        UntranslatedSheets = untranslated.Count(static u => u);
         Info = new PackRuntimeInfo(packId, pack.Manifest.Title, filePath, pack.SheetCount, pack.CellCount);
     }
 
     public PackRuntimeInfo Info { get; }
 
+    // Pack sheets the player keeps in the game's language this session.
+    public int UntranslatedSheets { get; }
+
     // Pack sheet index when the running sheet's String columns equal the pack
     // layout exactly (count, index, offset) and the variant matches, else -1.
     public int BindSheet(string sheetName, bool multiRow, ReadOnlySpan<StringColumn> columns)
     {
-        if (!pack.TryGetSheet(sheetName, out var sheet))
+        if (!pack.TryGetSheet(sheetName, out var sheet) || untranslated[sheet])
             return -1;
 
         var layout = pack.GetLayout(sheet);

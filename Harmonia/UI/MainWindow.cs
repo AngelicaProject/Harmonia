@@ -24,13 +24,15 @@ internal sealed record SessionInfo(
     string PluginVersion,
     GameFonts? Fonts,
     bool Reloaded,
-    string SelectedAtStart);
+    string SelectedAtStart,
+    IReadOnlyList<string> UntranslatedAtStart);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {
     private enum Page
     {
         Translations,
+        Content,
         Settings,
         Diagnostics,
     }
@@ -104,6 +106,9 @@ internal sealed partial class MainWindow : Window, IDisposable
                     case Page.Translations:
                         DrawTranslations();
                         break;
+                    case Page.Content:
+                        DrawContent();
+                        break;
                     case Page.Settings:
                         DrawSettings();
                         break;
@@ -129,6 +134,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             return;
 
         NavItem(Page.Translations, FontAwesomeIcon.Language, Lang.T("nav.translations"), feedState.AvailableCount > 0);
+        NavItem(Page.Content, FontAwesomeIcon.ListUl, Lang.T("nav.content"), false);
         NavItem(Page.Settings, FontAwesomeIcon.Cog, Lang.T("nav.settings"), false);
         NavItem(Page.Diagnostics, FontAwesomeIcon.Heartbeat, Lang.T("nav.diagnostics"), HasProblem);
 
@@ -175,7 +181,9 @@ internal sealed partial class MainWindow : Window, IDisposable
 
     private bool RestartPending =>
         session.IsRestartRequired ||
-        !string.Equals(configuration.ActivePackId ?? string.Empty, info.LoadedPackId ?? string.Empty, StringComparison.Ordinal);
+        !string.Equals(configuration.ActivePackId ?? string.Empty, info.LoadedPackId ?? string.Empty, StringComparison.Ordinal) ||
+        (info.LoadedPackId is not null && !configuration.UntranslatedSheets.Order(StringComparer.Ordinal)
+            .SequenceEqual(info.UntranslatedAtStart.Order(StringComparer.Ordinal), StringComparer.Ordinal));
 
     private void Select(string packId)
     {

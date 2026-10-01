@@ -67,6 +67,31 @@ fingerprint and asks the player to confirm it; the key is then pinned in its
 endorsed. Unsigned packs can be imported from a file only, after an explicit
 confirmation. Installing a lower version is manual only.
 
+## Sheets kept in the game's language
+
+The player can keep parts of the game untranslated, for example item and duty
+names shared with players of other languages. `UntranslatedSheets` lists sheet
+names (`Item`) and folders of sheets (`quest/*` covers every sheet whose name
+starts with `quest/`). A listed sheet is never bound to the pack, so its rows
+keep the game's text; it does not count as a layout mismatch. Like every pack
+decision, the list applies at the next game start.
+
+The *What to translate* page offers two views:
+
+- **Simple:** groups of sheets (`SheetGroups`), each one checkbox: items,
+  duties, places, actions and statuses, classes and jobs, character names,
+  mounts and other collections, achievements and titles, quest names, story
+  and dialogue. A group is on when all its entries are listed and marked
+  *partly* when some are.
+- **Every sheet:** the sheets of the translation chosen for the next start,
+  read from its metadata: sheets outside folders and one row per folder, with
+  the number of translated lines; a search lists matching sheets one by one.
+  A sheet inside a listed folder shows as kept and cannot be changed alone.
+
+Names the game assembles from another sheet through a macro follow that
+sheet: an item linked in chat shows in the language of the `Item` sheet.
+Names written into other text by the translator stay translated.
+
 ## Font glyphs
 
 A pack of format minor 1 may have a `FONTS` section (Aeria
@@ -120,6 +145,7 @@ next start.
 | --- | --- |
 | `ActivePackId` | the installed translation (`<id>`) applied at the next start |
 | `UpdateFeedUrls` | the feeds Harmonia checks |
+| `UntranslatedSheets` | sheets and folders (`quest/*`) kept in the game's language |
 | `FollowTestingChannel` | accept `testing` releases from feeds (default off) |
 | `NotifiedFeedVersions` | feed URL → last version the user was notified about |
 | `LastSeenGameVersion` | a change triggers an immediate feed check |

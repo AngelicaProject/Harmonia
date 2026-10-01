@@ -148,6 +148,17 @@ public sealed unsafe class HpkFile : IDisposable
 
     public bool TryGetSheet(string sheetName, out int sheet) => sheetsByName.TryGetValue(sheetName, out sheet);
 
+    // The number of translated cells of a sheet.
+    public long GetSheetCellCount(int sheet)
+    {
+        var record = SheetRecord(sheet);
+        long start = U32(record + 20);
+        long total = 0;
+        for (var r = start; r < start + U32(record + 24); r++)
+            total += U16(rowsOffset + (r * HpkFormat.RowRecordSize) + 6);
+        return total;
+    }
+
     public bool IsSubrowSheet(int sheet) => Span(SheetRecord(sheet) + 8, 1)[0] == 1;
 
     public HpkLayoutColumn[] GetLayout(int sheet)

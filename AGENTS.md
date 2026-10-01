@@ -14,7 +14,7 @@ Packs are built by Aeria (https://github.com/AngelicaProject/Aeria), which owns 
 - `Harmonia/Game/ExcelRowHooks.cs` — the only code that touches game memory.
 - `Harmonia/Fonts/` — the pack `FONTS` glyphs: `FdtFile` (game font tables), `FontTexture` (`0x1440` atlases), `AtlasPacker`, `FontPatcher` (adds glyphs to the main and title-screen font sets without touching existing data), `FontCache`. No game dependency.
 - `Harmonia/Game/GameFonts.cs` — builds or reuses the patched font files at startup, serves them through a Penumbra temporary mod (`Penumbra.Api`), and asks the game to reload its fonts once Penumbra has applied the mod.
-- `Harmonia/UI/` — `MainWindow`, a partial class with a sidebar: Translations (status, installed packs merged with their feeds, the add dialog and publisher confirmation in `MainWindow.Actions`), Settings, Diagnostics; `RestartWindow`; `Ui` (cards, badges, notices, buttons).
+- `Harmonia/UI/` — `MainWindow`, a partial class with a sidebar: Translations (status, installed packs merged with their feeds, the add dialog and publisher confirmation in `MainWindow.Actions`), What to translate (`MainWindow.Content`: sheet groups, or every sheet of the selected pack, kept in the game's language), Settings, Diagnostics; `RestartWindow`; `Ui` (cards, badges, notices, buttons).
 - `Harmonia/Localization/Lang.cs` with `Harmonia/Assets/Localization/{en,ru}.json`.
 - `Harmonia/Assets/Icon/harmonia_icon.png` — the plugin icon referenced by `IconUrl`.
 - `Harmonia.Tests/` — xUnit tests: localization dictionaries, the pack reader (`HpkBuilder` is an independent `.hpk` writer for fixtures), installer, feeds, `SeStringCheck` (against `TestData/well_formed.vectors.txt`, a copy of Aeria's vectors for the well-formed string rule of the pack format), `RowLayout`, `TranslationRuntime`, the font patching (`Fonts/`, with independent `.fdt`, `.tex`, and `FONTS` writers in `FontTestData`), and `AeriaInteropTests`, which reads `TestData/harmonia-interop.hpk` and `harmonia-interop-fonts.hpk` produced by Aeria's tests.
@@ -24,7 +24,7 @@ Packs are built by Aeria (https://github.com/AngelicaProject/Aeria), which owns 
 
 The game builds every Excel row in `ExcelRow_Parse_v3` and immediately hands it to the sheet's row resolver through `IExcelPageRowResolver::StoreRow` (vtable slot 3; implemented by `HashTableExcelPageRowResolver` and `RingBufferExcelPageRowResolver`). No other code can see the row before that call. The `StoreRow` detour:
 
-1. collects the sheet's String columns from `ColumnDefinitions` and binds the sheet to the pack by name, variant, and layout;
+1. collects the sheet's String columns from `ColumnDefinitions` and binds the sheet to the pack by name, variant, and layout, unless the player keeps the sheet in the game's language (`UntranslatedSheets`);
 2. takes the row id from the descriptor; for `MultiRow` sheets the subrow id is `SubRowIds[0]` (`LowerRowIdPart` is a hash of the keys, not an id);
 3. parses the row buffer with `RowLayout.TryRead`: a fixed part of `sheet->DataOffset` bytes followed by one NUL-terminated string per String column, in column order; any other layout leaves the row untouched;
 4. decides every pack cell of the row: the source guard must match;
