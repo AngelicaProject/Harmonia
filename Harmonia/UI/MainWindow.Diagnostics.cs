@@ -167,6 +167,7 @@ internal sealed partial class MainWindow
 
         if (info.Hooks is { } hooks)
             text.AppendLine(CultureInfo.InvariantCulture, $"StoreRow hooks: {hooks.HashTableAddress:X}, {hooks.RingBufferAddress:X}; errors {hooks.Errors}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"Letter case hooks: {(info.CaseHooks is { } caseHooks ? "on, errors " + caseHooks.Errors : "off")}");
 
         if (info.Runtime is { } runtime)
         {

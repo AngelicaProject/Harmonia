@@ -25,7 +25,8 @@ internal sealed record SessionInfo(
     GameFonts? Fonts,
     bool Reloaded,
     string SelectedAtStart,
-    IReadOnlyList<string> UntranslatedAtStart);
+    IReadOnlyList<string> UntranslatedAtStart,
+    TextCaseHooks? CaseHooks);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {

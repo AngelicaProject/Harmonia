@@ -91,6 +91,24 @@ Names the game assembles from another sheet through a macro follow that
 sheet: an item linked in chat shows in the language of the `Item` sheet.
 Names written into other text by the translator stay translated.
 
+## Letter case
+
+The game capitalizes names with text macros: an English sheet holds
+"paladin", and `<head>` shows "Paladin". The macros call `Utf8String::ToUpper`
+and `Utf8String::ToLower`, which change only ASCII and Latin-1 letters, so a
+Russian "паладин" stays lowercase. When the loaded pack's `language` is
+written in Cyrillic, `TextCaseHooks` detours both functions: the game's code
+runs first, then `CyrillicCase` applies the same rule to Cyrillic letters
+(U+0400–U+045F) in place. Both cases of these letters are two bytes, so a
+string never changes length; SeString payloads are skipped. With
+`firstCharOnly` and not `everyWord` only the first character changes, with
+both the first character of each word (after a space, minus the game's
+exclusion list), without `firstCharOnly` every letter.
+
+The signatures are taken from the installed game. When one is not found the
+hooks are not installed, names stay lowercase, and translation is otherwise
+unaffected; the Diagnostics report shows whether they are on.
+
 ## Font glyphs
 
 A pack of format minor 1 may have a `FONTS` section (Aeria

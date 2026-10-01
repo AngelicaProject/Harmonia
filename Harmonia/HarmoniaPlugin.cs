@@ -35,6 +35,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly FeedUpdateService feeds;
     private readonly TranslationRuntime? runtime;
     private readonly ExcelRowHooks? hooks;
+    private readonly TextCaseHooks? caseHooks;
     private readonly GameFonts? fonts;
     private readonly WindowSystem windows = new("Harmonia");
     private readonly MainWindow mainWindow;
@@ -115,6 +116,20 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                     hookError = ex.Message;
                     log.Error("Excel row hooks could not be installed; the game stays untranslated.", ex);
                 }
+
+                // The game capitalizes only Latin letters; a Cyrillic pack
+                // needs its <head> and <caps> names capitalized too.
+                if (hooks is not null && CyrillicCase.IsCyrillicLanguage(file.Manifest.Language))
+                {
+                    try
+                    {
+                        caseHooks = new TextCaseHooks(interop, scanner, log);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Error("Letter case hooks could not be installed; capitalized names stay lowercase.", ex);
+                    }
+                }
             }
         }
 
@@ -147,7 +162,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets]),
+                [.. configuration.UntranslatedSheets], caseHooks),
             pluginInterface.UiBuilder);
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
@@ -192,6 +207,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
         feeds.Dispose();
         fonts?.Dispose();
+
+        caseHooks?.Dispose();
 
         // The hooks wait for running detours before the pack is unmapped.
         hooks?.Dispose();
