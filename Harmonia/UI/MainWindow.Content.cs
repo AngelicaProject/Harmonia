@@ -10,8 +10,8 @@ using Harmonia.Packs.Hpk;
 namespace Harmonia.UI;
 
 // What the active translation applies: the player keeps chosen sheets in the
-// game's language, by group in the simple view or sheet by sheet in the full
-// one. Like every pack decision, a change applies at the next game start.
+// game's language, by group or sheet by sheet. Like every pack decision, a
+// change applies at the next game start.
 internal sealed partial class MainWindow
 {
     private const int MaxSearchResults = 300;

@@ -8,7 +8,7 @@ public sealed record SheetGroup(string Key, IReadOnlyList<string> Entries);
 
 public static class SheetGroups
 {
-    // Names players share across languages come first.
+    // Names first, then descriptions and story text.
     public static readonly IReadOnlyList<SheetGroup> All =
     [
         new("items", ["Item", "EventItem", "EventItemHelp"]),

@@ -69,21 +69,20 @@ confirmation. Installing a lower version is manual only.
 
 ## Sheets kept in the game's language
 
-The player can keep parts of the game untranslated, for example item and duty
-names shared with players of other languages. `UntranslatedSheets` lists sheet
+The player can keep parts of the game untranslated. `UntranslatedSheets` lists sheet
 names (`Item`) and folders of sheets (`quest/*` covers every sheet whose name
 starts with `quest/`). A listed sheet is never bound to the pack, so its rows
 keep the game's text; it does not count as a layout mismatch. Like every pack
 decision, the list applies at the next game start.
 
-The *What to translate* page offers two views:
+The *Coverage* page offers two views:
 
-- **Simple:** groups of sheets (`SheetGroups`), each one checkbox: items,
+- **Groups:** groups of sheets (`SheetGroups`), each one checkbox: items,
   duties, places, actions and statuses, classes and jobs, character names,
   mounts and other collections, achievements and titles, quest names, story
   and dialogue. A group is on when all its entries are listed and marked
   *partly* when some are.
-- **Every sheet:** the sheets of the translation chosen for the next start,
+- **Sheets:** the sheets of the translation chosen for the next start,
   read from its metadata: sheets outside folders and one row per folder, with
   the number of translated lines; a search lists matching sheets one by one.
   A sheet inside a listed folder shows as kept and cannot be changed alone.
