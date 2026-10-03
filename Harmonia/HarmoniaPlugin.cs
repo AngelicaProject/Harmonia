@@ -270,11 +270,18 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     }
 
     // Both names: a plugin's manifest and its repository can disagree on the
-    // internal one ("PandorasBox" and "Pandora's Box").
-    private static IEnumerable<string> InstalledPluginNames(IDalamudPluginInterface pluginInterface) =>
-        pluginInterface.InstalledPlugins
+    // internal one ("PandorasBox" and "Pandora's Box"). Harmonia loads before
+    // Dalamud lists the other plugins, so the installed folders count too;
+    // Dalamud's list adds the dev plugins.
+    private static IEnumerable<string> InstalledPluginNames(IDalamudPluginInterface pluginInterface)
+    {
+        var launcherDir = pluginInterface.ConfigDirectory.Parent?.Parent?.FullName;
+        var folders = launcherDir is null ? [] : InstalledPluginFolders.Names(Path.Combine(launcherDir, "installedPlugins"));
+        return pluginInterface.InstalledPlugins
             .Where(static p => !p.IsBanned && !p.IsDecommissioned)
-            .SelectMany(static p => new[] { p.InternalName, p.Name });
+            .SelectMany(static p => new[] { p.InternalName, p.Name })
+            .Concat(folders);
+    }
 
     // The client may not report its version when the plugin loads; retry on
     // framework ticks (throttled by the store) until it is known.

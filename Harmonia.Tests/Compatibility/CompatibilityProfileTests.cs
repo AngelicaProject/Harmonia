@@ -185,6 +185,35 @@ public sealed class CompatibilityProfileTests
     }
 
     [Fact]
+    public void Installed_plugins_are_read_from_their_folders()
+    {
+        var dir = Directory.CreateTempSubdirectory("harmonia-installed-");
+        try
+        {
+            void Install(string folder, string version, string manifest)
+            {
+                var path = Directory.CreateDirectory(Path.Combine(dir.FullName, folder, version)).FullName;
+                File.WriteAllText(Path.Combine(path, folder + ".json"), manifest);
+            }
+
+            Install("AutoRetainer", "4.6.0.9", """{"InternalName":"AutoRetainer","Name":"AutoRetainer"}""");
+            Install("PandorasBox", "1.0", """{"InternalName":"PandorasBox","Name":"Pandora's Box"}""");
+            Install("Removed", "1.0", """{"InternalName":"Removed","ScheduledForDeletion":true}""");
+            Install("Broken", "1.0", "{");
+            Directory.CreateDirectory(Path.Combine(dir.FullName, "Empty"));
+
+            var names = InstalledPluginFolders.Names(dir.FullName);
+
+            Assert.Equal(["AutoRetainer", "AutoRetainer", "Broken", "Pandora's Box", "PandorasBox"], names.Order(StringComparer.Ordinal));
+            Assert.Empty(InstalledPluginFolders.Names(Path.Combine(dir.FullName, "missing")));
+        }
+        finally
+        {
+            dir.Delete(true);
+        }
+    }
+
+    [Fact]
     public void Rows_outside_the_profiles_are_translated()
     {
         var keep = CompatibilityProfile.Keep([CompatibilityProfile.Parse("""{"plugin":"X","rows":{"Addon":[7]}}""")], static _ => []);

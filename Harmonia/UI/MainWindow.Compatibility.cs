@@ -65,7 +65,6 @@ internal sealed partial class MainWindow
                     save();
                 }
 
-                Hinted(Lang.T(on ? "compat.on_hint" : "compat.off_hint", profile.Name));
                 Ui.Gap(2);
             }
         }

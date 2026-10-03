@@ -142,8 +142,6 @@
   "compat.title": "Plugins without translation support",
   "compat.intro": "To keep these plugins working, Harmonia leaves some menus untranslated. Changes apply after a game restart.",
   "compat.keep": "Leave menus untranslated for {0}",
-  "compat.on_hint": "{0} works, but some menus are in the game's language.",
-  "compat.off_hint": "Everything is translated, but {0} will stop working.",
   "sheets.items": "Items",
   "sheets.items_hint": "Names and descriptions of items and key items.",
   "sheets.duties": "Duties",
