@@ -1,0 +1,25 @@
+{
+  "plugin": "Lifestream",
+  "name": "Lifestream",
+  "sheets": ["World", "WorldDCGroupType"],
+  "rows": {
+    "Addon": [2090, 6349, 6355, 6782, 6784, 12519, 12624],
+    "Lobby": [11, 25, 95, 96, 629, 1117, 1150, 1218],
+    "LogMessage": [430, 9419, 9426, 9427],
+    "EObjName": [2000151, 2002737, 2002739, 2004353],
+    "Warp": [131148],
+    "PlaceName": [
+      1250, 1251, 1252, 1300,
+      2415, 2429, 2436, 2463, 2472, 2473, 2474, 2531, 2540, 2541, 2542, 2876, 2891, 2892,
+      3436, 3473, 3474, 3475, 3525, 3528, 3529, 3530, 3531, 3575, 3645, 3646, 3664, 3665, 3666, 3667,
+      4928, 4929, 4930, 4944, 4947,
+      5571, 5572, 5573, 5574, 5575, 5576
+    ],
+    "transport/Aetheryte": [1, 2, 3, 16],
+    "transport/AetheryteIshgard": [0],
+    "custom/001/CmnDefHousingPersonalRoomEntrance_00178": [11],
+    "custom/003/HouFixMansionEntrance_00359": [0, 2],
+    "custom/007/CtsMjiEntrance_00798": [4, 7]
+  },
+  "sources": ["aethernet-place-names"]
+}

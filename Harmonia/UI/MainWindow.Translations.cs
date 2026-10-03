@@ -158,6 +158,9 @@ internal sealed partial class MainWindow
         else if (running && info.Fonts?.State == GameFontsState.NeedsReload)
             Ui.Notice("fonts_reload", FontAwesomeIcon.Font, Ui.Warn, Lang.T("notice.fonts_reload"));
 
+        if (running)
+            DrawCompatibilityNotice();
+
         if (staging is not null)
             Ui.Notice("staging", FontAwesomeIcon.HourglassHalf, Ui.Info, Lang.T("import.verifying"));
 

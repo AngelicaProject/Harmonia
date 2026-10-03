@@ -29,6 +29,13 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public List<string> UntranslatedSheets { get; set; } = [];
 
+    /// <summary>
+    /// Plugins (InternalName) whose compatibility profile the player turned
+    /// off: the text they look for is translated too. Profiles of installed
+    /// plugins are on otherwise. Applies at the next game start.
+    /// </summary>
+    public List<string> DisabledCompatibility { get; set; } = [];
+
     /// <summary>Feed URLs polled for new releases.</summary>
     public List<string> UpdateFeedUrls { get; set; } = [];
 

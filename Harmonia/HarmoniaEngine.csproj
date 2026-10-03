@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.4.1</Version>
+    <Version>0.1.5.0</Version>
     <AssemblyName>HarmoniaEngine</AssemblyName>
     <RootNamespace>Harmonia</RootNamespace>
     <Nullable>enable</Nullable>
@@ -44,6 +44,10 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Assets/Localization/ru.json">
       <LogicalName>Localization.ru.json</LogicalName>
+    </EmbeddedResource>
+    <!-- Plugin compatibility profiles, one per plugin (Compatibility/CompatibilityProfile.cs). -->
+    <EmbeddedResource Include="Assets/Compatibility/*.json">
+      <LogicalName>Compatibility.%(Filename).json</LogicalName>
     </EmbeddedResource>
     <Content Include="Assets/Localization/*.json">
       <Link>Localization/%(Filename)%(Extension)</Link>

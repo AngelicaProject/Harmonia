@@ -49,6 +49,7 @@ internal sealed partial class MainWindow
         }
 
         Ui.Gap(4);
+        DrawCompatibility();
         if (contentAdvanced)
             DrawSheetList();
         else

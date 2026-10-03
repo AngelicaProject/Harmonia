@@ -60,6 +60,11 @@ internal sealed partial class MainWindow
             Row(Lang.T("info.source_changed"), totals.SourceChanged.ToString("N0", CultureInfo.CurrentCulture));
             if (runtime.UntranslatedSheets > 0)
                 Row(Lang.T("info.untranslated_sheets"), runtime.UntranslatedSheets.ToString("N0", CultureInfo.CurrentCulture));
+            if (info.CompatibilityAtStart.Count > 0)
+            {
+                Row(Lang.T("info.compatibility"), string.Join(", ", info.CompatibilityAtStart));
+                Row(Lang.T("info.rows_kept"), totals.RowsKept.ToString("N0", CultureInfo.CurrentCulture));
+            }
             if (totals.MatchRate is { } rate)
                 Row(Lang.T("info.match_rate"), rate.ToString("P1", CultureInfo.CurrentCulture));
             if (totals.LayoutMismatchSheets > 0)
@@ -174,6 +179,7 @@ internal sealed partial class MainWindow
             var t = runtime.GetTotals();
             text.AppendLine(CultureInfo.InvariantCulture, $"Pack: {runtime.Info.PackId} ({runtime.Info.Sheets} sheets, {runtime.Info.Cells} cells, {runtime.UntranslatedSheets} sheets kept untranslated)");
             text.AppendLine(CultureInfo.InvariantCulture, $"Applied {t.Applied}, source changed {t.SourceChanged}, rows {t.RowsRebuilt}, unexpected rows {t.RowsUnexpected}, layout mismatch sheets {t.LayoutMismatchSheets}");
+            text.AppendLine(CultureInfo.InvariantCulture, $"Plugin compatibility: {(info.CompatibilityAtStart.Count == 0 ? "none" : string.Join(", ", info.CompatibilityAtStart))}; rows kept {t.RowsKept}");
             foreach (var s in runtime.GetSheetStats())
                 text.AppendLine(CultureInfo.InvariantCulture, $"  {s.SheetName}: applied {s.Applied}, changed {s.SourceChanged}, rows {s.RowsRebuilt}, unexpected {s.RowsUnexpected}, layout mismatch {s.LayoutMismatch}");
         }

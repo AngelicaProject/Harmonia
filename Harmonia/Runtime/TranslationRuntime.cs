@@ -27,7 +27,8 @@ public readonly record struct RuntimeTotals(
     long SourceChanged,
     long RowsRebuilt,
     long RowsUnexpected,
-    int LayoutMismatchSheets)
+    int LayoutMismatchSheets,
+    long RowsKept)
 {
     // Share of guarded cells whose source still matched; null before any.
     public double? MatchRate => Applied + SourceChanged == 0 ? null : (double)Applied / (Applied + SourceChanged);
@@ -39,6 +40,8 @@ public sealed unsafe class TranslationRuntime : IDisposable
 {
     private readonly HpkFile pack;
     private readonly bool[] untranslated;
+    private readonly IReadOnlySet<uint>?[] keptRows;
+    private readonly long[] kept;
     private readonly long[] applied;
     private readonly long[] changed;
     private readonly long[] rebuilt;
@@ -46,8 +49,9 @@ public sealed unsafe class TranslationRuntime : IDisposable
     private readonly int[] layoutMismatch;
 
     // packId is the installed translation's name in the pack store; the
-    // sheets the filter excludes stay in the game's language.
-    public TranslationRuntime(HpkFile pack, string packId, string filePath, SheetFilter? untranslatedSheets = null)
+    // sheets the filter excludes and the kept rows stay in the game's language.
+    public TranslationRuntime(HpkFile pack, string packId, string filePath, SheetFilter? untranslatedSheets = null,
+        KeptRows? keep = null)
     {
         if (pack.Mode != HpkOpenMode.Full)
             throw new ArgumentException("Runtime packs must be fully verified.", nameof(pack));
@@ -59,10 +63,19 @@ public sealed unsafe class TranslationRuntime : IDisposable
         rebuilt = new long[sheets];
         unexpected = new long[sheets];
         layoutMismatch = new int[sheets];
+        kept = new long[sheets];
         untranslated = new bool[sheets];
-        for (var i = 0; i < sheets && untranslatedSheets is not null; i++)
-            untranslated[i] = untranslatedSheets.Excludes(pack.SheetNames[i]);
-        UntranslatedSheets = untranslated.Count(static u => u);
+        keptRows = new IReadOnlySet<uint>?[sheets];
+        for (var i = 0; i < sheets; i++)
+        {
+            var name = pack.SheetNames[i];
+            var byPlayer = untranslatedSheets?.Excludes(name) == true;
+            if (byPlayer)
+                UntranslatedSheets++;
+            untranslated[i] = byPlayer || keep?.KeepsSheet(name) == true;
+            keptRows[i] = keep?.RowsOf(name);
+        }
+
         Info = new PackRuntimeInfo(packId, pack.Manifest.Title, filePath, pack.SheetCount, pack.CellCount);
     }
 
@@ -90,8 +103,18 @@ public sealed unsafe class TranslationRuntime : IDisposable
         return -1;
     }
 
-    public bool TryGetRow(int sheet, uint rowId, ushort subrowId, out HpkRow row) =>
-        pack.TryGetRow(sheet, rowId, subrowId, out row);
+    // Every subrow of a kept row stays as the game has it.
+    public bool TryGetRow(int sheet, uint rowId, ushort subrowId, out HpkRow row)
+    {
+        if (!pack.TryGetRow(sheet, rowId, subrowId, out row))
+            return false;
+        if (keptRows[sheet] is not { } keptIds || !keptIds.Contains(rowId))
+            return true;
+
+        Interlocked.Increment(ref kept[sheet]);
+        row = default;
+        return false;
+    }
 
     public HpkCell GetCell(HpkRow row, int index, out ushort ordinal) => pack.GetCell(row, index, out ordinal);
 
@@ -114,7 +137,7 @@ public sealed unsafe class TranslationRuntime : IDisposable
 
     public RuntimeTotals GetTotals()
     {
-        long a = 0, c = 0, r = 0, x = 0;
+        long a = 0, c = 0, r = 0, x = 0, k = 0;
         var mismatched = 0;
         for (var i = 0; i < applied.Length; i++)
         {
@@ -122,10 +145,11 @@ public sealed unsafe class TranslationRuntime : IDisposable
             c += Interlocked.Read(ref changed[i]);
             r += Interlocked.Read(ref rebuilt[i]);
             x += Interlocked.Read(ref unexpected[i]);
+            k += Interlocked.Read(ref kept[i]);
             mismatched += Volatile.Read(ref layoutMismatch[i]);
         }
 
-        return new RuntimeTotals(a, c, r, x, mismatched);
+        return new RuntimeTotals(a, c, r, x, mismatched, k);
     }
 
     // Sheets that were touched at runtime, in pack order.

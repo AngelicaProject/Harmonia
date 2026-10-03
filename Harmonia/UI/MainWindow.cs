@@ -26,7 +26,8 @@ internal sealed record SessionInfo(
     bool Reloaded,
     string SelectedAtStart,
     IReadOnlyList<string> UntranslatedAtStart,
-    TextCaseHooks? CaseHooks);
+    TextCaseHooks? CaseHooks,
+    IReadOnlyList<string> CompatibilityAtStart);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {
@@ -61,7 +62,8 @@ internal sealed partial class MainWindow : Window, IDisposable
         FeedUpdateState feedState,
         SessionState session,
         SessionInfo info,
-        IUiBuilder uiBuilder)
+        IUiBuilder uiBuilder,
+        Func<IEnumerable<string>> installedPlugins)
         : base("Harmonia###harmonia_main")
     {
         this.configuration = configuration;
@@ -72,6 +74,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         this.feedState = feedState;
         this.session = session;
         this.info = info;
+        this.installedPlugins = installedPlugins;
         headingFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(MathF.Round(UiBuilder.DefaultFontSizePx * 1.25f))));
         largeIconFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = MathF.Round(UiBuilder.DefaultFontSizePx * 1.6f) })));
 
@@ -184,7 +187,8 @@ internal sealed partial class MainWindow : Window, IDisposable
         session.IsRestartRequired ||
         !string.Equals(configuration.ActivePackId ?? string.Empty, info.LoadedPackId ?? string.Empty, StringComparison.Ordinal) ||
         (info.LoadedPackId is not null && !configuration.UntranslatedSheets.Order(StringComparer.Ordinal)
-            .SequenceEqual(info.UntranslatedAtStart.Order(StringComparer.Ordinal), StringComparer.Ordinal));
+            .SequenceEqual(info.UntranslatedAtStart.Order(StringComparer.Ordinal), StringComparer.Ordinal)) ||
+        (info.LoadedPackId is not null && CompatibilityChanged);
 
     private void Select(string packId)
     {
