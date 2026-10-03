@@ -1,0 +1,8 @@
+{
+  "plugin": "PandorasBox",
+  "name": "Pandora's Box",
+  "rows": {
+    "Addon": [155, 6417, 8100],
+    "LogMessage": [7777]
+  }
+}

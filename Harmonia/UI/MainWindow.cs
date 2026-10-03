@@ -5,6 +5,7 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Harmonia.Compatibility;
 using Harmonia.Feeds;
 using Harmonia.Game;
 using Harmonia.Localization;
@@ -27,7 +28,8 @@ internal sealed record SessionInfo(
     string SelectedAtStart,
     IReadOnlyList<string> UntranslatedAtStart,
     TextCaseHooks? CaseHooks,
-    IReadOnlyList<string> CompatibilityAtStart);
+    IReadOnlyList<string> CompatibilityAtStart,
+    string? CompatibilityError);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {
@@ -63,7 +65,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         SessionState session,
         SessionInfo info,
         IUiBuilder uiBuilder,
-        Func<IEnumerable<string>> installedPlugins)
+        Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles)
         : base("Harmonia###harmonia_main")
     {
         this.configuration = configuration;
@@ -74,7 +76,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         this.feedState = feedState;
         this.session = session;
         this.info = info;
-        this.installedPlugins = installedPlugins;
+        this.relevantProfiles = relevantProfiles;
         headingFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(MathF.Round(UiBuilder.DefaultFontSizePx * 1.25f))));
         largeIconFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = MathF.Round(UiBuilder.DefaultFontSizePx * 1.6f) })));
 

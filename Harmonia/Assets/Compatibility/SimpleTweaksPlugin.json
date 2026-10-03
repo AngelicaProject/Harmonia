@@ -1,0 +1,94 @@
+{
+  "plugin": "SimpleTweaksPlugin",
+  "name": "Simple Tweaks",
+  "optional": [
+    {
+      "when": [
+        {
+          "config": "SimpleTweaksPlugin.json",
+          "path": "$.EnabledTweaks[?(@ == 'FixTarget')]",
+          "default": false
+        }
+      ],
+      "rows": {
+        "Addon": [
+          3621
+        ],
+        "TextCommand": [
+          253
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "SimpleTweaksPlugin.json",
+          "path": "$.EnabledTweaks[?(@ == 'ChatTweaks@RenameChatTabs')]",
+          "default": false
+        }
+      ],
+      "rows": {
+        "Addon": [
+          662,
+          663
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "SimpleTweaksPlugin.json",
+          "path": "$.EnabledTweaks[?(@ == 'CustomDefaultQuantity')]",
+          "default": false
+        }
+      ],
+      "rows": {
+        "Addon": [
+          914,
+          915
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "SimpleTweaksPlugin.json",
+          "path": "$.EnabledTweaks[?(@ == 'UiAdjustments@FastSearch')]",
+          "default": false
+        }
+      ],
+      "rows": {
+        "Addon": [
+          3136
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "SimpleTweaksPlugin.json",
+          "path": "$.EnabledTweaks[?(@ == 'SyncCrafterBars')]",
+          "default": false
+        }
+      ],
+      "cells": [
+        {
+          "sheet": "ClassJob",
+          "columns": [
+            1
+          ],
+          "rows": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ]
+    }
+  ]
+}

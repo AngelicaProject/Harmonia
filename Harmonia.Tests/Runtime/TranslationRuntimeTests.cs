@@ -22,7 +22,7 @@ internal static unsafe class RuntimeProbe
             if (cellOrdinal != ordinal)
                 continue;
 
-            var decision = runtime.Decide(sheet, cell, Encoding.UTF8.GetBytes(source));
+            var decision = runtime.Decide(sheet, row, ordinal, cell, Encoding.UTF8.GetBytes(source));
             return (decision, decision == CellDecision.Applied ? Encoding.UTF8.GetString(cell.String, cell.Length) : null);
         }
 

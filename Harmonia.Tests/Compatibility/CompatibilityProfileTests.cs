@@ -17,9 +17,13 @@ public sealed class CompatibilityProfileTests
     {
         var profiles = CompatibilityProfile.All;
 
-        Assert.Contains(profiles, static p => p.Plugin == "Lifestream");
-        Assert.Equal(profiles.Count, profiles.Select(static p => p.Plugin).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.All(profiles, static p => Assert.True(p.Rows.Count + p.Sheets.Count + p.Sources.Count > 0, p.Plugin));
+        Assert.Equal(
+            ["Artisan", "AutoRetainer", "Lifestream", "PandorasBox", "Questionable", "SimpleTweaksPlugin", "TextAdvance", "YesAlready"],
+            profiles.Select(static p => p.Plugin).Order(StringComparer.Ordinal));
+        Assert.All(profiles, static p => Assert.Contains(p.Parts, static part =>
+            part.Rows.Count + part.Sheets.Count + part.Cells.Count + part.Sources.Count > 0));
+        Assert.All(profiles.SelectMany(static p => p.Parts).SelectMany(static part => part.When.Concat(part.Require)),
+            static c => Assert.False(Path.IsPathRooted(c.Config), c.Config));
     }
 
     [Fact]
@@ -44,6 +48,15 @@ public sealed class CompatibilityProfileTests
     }
 
     [Fact]
+    public void Plugin_names_match_by_letters_and_digits()
+    {
+        var pandora = CompatibilityProfile.Parse("""{"plugin":"PandorasBox"}""");
+
+        Assert.Single(CompatibilityProfile.Installed([pandora], ["Pandora's Box"]));
+        Assert.Empty(CompatibilityProfile.Installed([pandora], ["Pandora"]));
+    }
+
+    [Fact]
     public void Kept_rows_and_sheets_stay_in_the_game_language()
     {
         var profile = CompatibilityProfile.Parse("""
@@ -59,8 +72,116 @@ public sealed class CompatibilityProfileTests
         var addon = runtime.BindSheet("Addon", false, AddonColumns);
         Assert.Null(RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Hello").Decision);
         Assert.Null(RuntimeProbe.Lookup(runtime, addon, 7, 0, 1, "Hi").Decision);
-        Assert.Equal(2, runtime.GetTotals().RowsKept);
+        Assert.Equal(3, runtime.GetTotals().Kept);
         Assert.Equal(0, runtime.GetTotals().Applied);
+    }
+
+    [Fact]
+    public void Kept_columns_leave_the_other_columns_translated()
+    {
+        // Addon's layout is columns 0 and 2: ordinal 1 is column 2.
+        var everyRow = CompatibilityProfile.Keep([CompatibilityProfile.Parse("""{"plugin":"X","cells":[{"sheet":"Addon","columns":[2]}]}""")], static _ => []);
+        using var runtime = new TranslationRuntime(
+            HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full), "test", "test.hpk", null, everyRow);
+        var addon = runtime.BindSheet("Addon", false, AddonColumns);
+
+        Assert.Equal((CellDecision.Applied, "Привет"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Hello"));
+        Assert.Equal(CellDecision.Kept, RuntimeProbe.Lookup(runtime, addon, 1, 0, 1, "World").Decision);
+        Assert.Equal(CellDecision.Kept, RuntimeProbe.Lookup(runtime, addon, 7, 0, 1, "Hi").Decision);
+
+        var oneRow = CompatibilityProfile.Keep([CompatibilityProfile.Parse("""{"plugin":"X","cells":[{"sheet":"Addon","columns":[2],"rows":[7]}]}""")], static _ => []);
+        using var narrow = new TranslationRuntime(
+            HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full), "test", "test.hpk", null, oneRow);
+        addon = narrow.BindSheet("Addon", false, AddonColumns);
+
+        Assert.Equal((CellDecision.Applied, "Мир"), RuntimeProbe.Lookup(narrow, addon, 1, 0, 1, "World"));
+        Assert.Equal(CellDecision.Kept, RuntimeProbe.Lookup(narrow, addon, 7, 0, 1, "Hi").Decision);
+        Assert.Equal(1, narrow.GetTotals().Kept);
+    }
+
+    [Fact]
+    public void Optional_parts_follow_the_plugin_settings()
+    {
+        var dir = Directory.CreateTempSubdirectory("harmonia-compat-");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir.FullName, "X"));
+            File.WriteAllText(Path.Combine(dir.FullName, "X", "DefaultConfig.json"),
+                """{"Nav": true, "Mount": -1, "Data": [{"Subs": []}, {"Subs": [1]}], "Tweaks": ["A", "B"]}""");
+            var profile = CompatibilityProfile.Parse("""
+                {"plugin":"X","optional":[
+                  {"when":[{"config":"X/DefaultConfig.json","path":"Nav","equals":true}],"rows":{"Addon":[1]}},
+                  {"when":[{"config":"X/DefaultConfig.json","path":"Mount","notEquals":-1}],"rows":{"Addon":[2]}},
+                  {"when":[{"config":"X/DefaultConfig.json","path":"$.Data[*].Subs[0]","default":false}],"rows":{"Addon":[3]}},
+                  {"when":[{"config":"X/DefaultConfig.json","path":"$.Tweaks[?(@ == 'C')]","default":false}],"rows":{"Addon":[4]}},
+                  {"require":[{"config":"X/DefaultConfig.json","path":"Nav","equals":true},{"config":"X/DefaultConfig.json","path":"Mount","equals":0}],"rows":{"Addon":[5]}},
+                  {"when":[{"config":"Missing.json","path":"Anything","default":true}],"rows":{"Addon":[6]}},
+                  {"when":[{"config":"../outside.json","path":"Anything","default":false}],"rows":{"Addon":[7]}}
+                ]}
+                """);
+
+            var kept = CompatibilityProfile.Keep([profile], static _ => [], c => c.Holds(dir.FullName)).RowsOf("Addon");
+
+            Assert.NotNull(kept);
+            Assert.Equal([1u, 3u, 6u], kept.Order());
+        }
+        finally
+        {
+            dir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public void A_broken_profile_is_skipped_and_the_others_load()
+    {
+        var (profiles, errors) = CompatibilityProfile.Load(
+        [
+            ("good.json", """{"plugin":"Good","rows":{"Addon":[1]}}"""),
+            ("bad.json", """{"plugin":"Bad","rows":{"Addon":["x"]}}"""),
+            ("unknown.json", """{"plugin":"Unknown","sources":["nope"]}"""),
+            ("twice.json", """{"plugin":"good"}"""),
+            ("garbage.json", "{"),
+        ]);
+
+        Assert.Equal(["Good"], profiles.Select(static p => p.Plugin));
+        Assert.Equal(4, errors.Count);
+    }
+
+    [Fact]
+    public void Unreadable_settings_give_the_default()
+    {
+        var dir = Directory.CreateTempSubdirectory("harmonia-compat-");
+        try
+        {
+            File.WriteAllText(Path.Combine(dir.FullName, "Broken.json"), "{ not json");
+            File.WriteAllText(Path.Combine(dir.FullName, "Changed.json"), """{"Nav": {"Enabled": true}}""");
+
+            Assert.True(new CompatibilityCondition("Broken.json", "Nav", null, null, true).Holds(dir.FullName));
+            Assert.False(new CompatibilityCondition("Broken.json", "Nav", null, null, false).Holds(dir.FullName));
+            Assert.True(new CompatibilityCondition("Changed.json", "Nav", true, null, true).Holds(dir.FullName) is false);
+            Assert.True(new CompatibilityCondition("Changed.json", "$[?(", null, null, true).Holds(dir.FullName));
+            Assert.False(new CompatibilityCondition("Missing.json", "Nav", null, null, false).Holds(Path.Combine(dir.FullName, "nowhere")));
+        }
+        finally
+        {
+            dir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public void Kept_text_that_the_pack_lacks_changes_nothing()
+    {
+        var profile = CompatibilityProfile.Parse("""
+            {"plugin":"X","sheets":["Gone"],"rows":{"Addon":[999],"Gone":[1]},"cells":[{"sheet":"Addon","columns":[77]},{"sheet":"Gone","columns":[0]}]}
+            """);
+        using var runtime = new TranslationRuntime(
+            HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full), "test", "test.hpk", null,
+            CompatibilityProfile.Keep([profile], static _ => throw new InvalidOperationException("never asked")));
+        var addon = runtime.BindSheet("Addon", false, AddonColumns);
+
+        Assert.Equal((CellDecision.Applied, "Привет"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Hello"));
+        Assert.Equal((CellDecision.Applied, "Мир"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 1, "World"));
+        Assert.Equal(0, runtime.GetTotals().Kept);
     }
 
     [Fact]
@@ -72,6 +193,6 @@ public sealed class CompatibilityProfileTests
         var addon = runtime.BindSheet("Addon", false, AddonColumns);
 
         Assert.Equal((CellDecision.Applied, "Привет"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Hello"));
-        Assert.Equal(0, runtime.GetTotals().RowsKept);
+        Assert.Equal(0, runtime.GetTotals().Kept);
     }
 }

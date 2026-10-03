@@ -1,0 +1,124 @@
+{
+  "plugin": "AutoRetainer",
+  "name": "AutoRetainer",
+  "sheets": [
+    "CompanyAction"
+  ],
+  "rows": {
+    "Addon": [
+      97,
+      98,
+      99,
+      116,
+      281,
+      397,
+      398,
+      399,
+      632,
+      2378,
+      2379,
+      2383,
+      2385,
+      2386,
+      2387,
+      2436,
+      2817,
+      3290,
+      4477,
+      4617,
+      4618,
+      4619,
+      5480,
+      5882,
+      11502,
+      13530,
+      102433,
+      102434
+    ],
+    "Lobby": [
+      618,
+      1237
+    ],
+    "LogMessage": [
+      4330,
+      4578,
+      5800
+    ],
+    "EObjName": [
+      2000401,
+      2002737,
+      2002739,
+      2004353,
+      2007402
+    ],
+    "Warp": [
+      131148
+    ],
+    "custom/000/CmnDefRetainerCall_00010": [
+      194,
+      195,
+      196,
+      197,
+      198,
+      199,
+      200,
+      201,
+      202,
+      215,
+      402
+    ],
+    "custom/000/ComDefGrandCompanyOfficer_00073": [
+      69
+    ],
+    "custom/000/CmnDefCabinet_00082": [
+      1
+    ],
+    "custom/003/HouFixMansionEntrance_00359": [
+      0
+    ]
+  },
+  "optional": [
+    {
+      "when": [
+        {
+          "config": "AutoRetainer/DefaultConfig.json",
+          "path": "$.OfflineData[*].EnabledSubs[0]",
+          "default": false
+        },
+        {
+          "config": "AutoRetainer/DefaultConfig.json",
+          "path": "$.OfflineData[*].EnabledAirships[0]",
+          "default": false
+        }
+      ],
+      "sheets": [
+        "custom/002/CmnDefCompanyCommanderBoard_00258",
+        "custom/004/HouFixCompanySubmarine_00447",
+        "SubmarineExploration"
+      ],
+      "rows": {
+        "Addon": [
+          2,
+          5,
+          6587,
+          6886
+        ],
+        "LogMessage": [
+          4160,
+          4169,
+          4272
+        ],
+        "EObjName": [
+          2005274
+        ],
+        "CustomTalk": [
+          721154,
+          721343
+        ],
+        "custom/001/CmnDefHousingPersonalRoomEntrance_00178": [
+          11
+        ]
+      }
+    }
+  ]
+}

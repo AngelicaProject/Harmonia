@@ -1,0 +1,52 @@
+{
+  "plugin": "YesAlready",
+  "name": "YesAlready",
+  "optional": [
+    {
+      "when": [
+        {
+          "config": "YesAlready.json",
+          "path": "RetainerTaskResultEnabled",
+          "equals": true,
+          "default": false
+        }
+      ],
+      "rows": {
+        "Addon": [
+          2365
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "YesAlready.json",
+          "path": "GimmickYesNo",
+          "equals": true,
+          "default": false
+        }
+      ],
+      "sheets": [
+        "GimmickYesNo"
+      ]
+    },
+    {
+      "when": [
+        {
+          "config": "YesAlready.json",
+          "path": "SelectStringAutoAcceptQuests",
+          "equals": true,
+          "default": false
+        }
+      ],
+      "cells": [
+        {
+          "sheet": "Quest",
+          "columns": [
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

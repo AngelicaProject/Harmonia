@@ -3,6 +3,7 @@ using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
+using Harmonia.Compatibility;
 using Harmonia.Fonts;
 using Harmonia.Game;
 using Harmonia.Localization;
@@ -63,7 +64,7 @@ internal sealed partial class MainWindow
             if (info.CompatibilityAtStart.Count > 0)
             {
                 Row(Lang.T("info.compatibility"), string.Join(", ", info.CompatibilityAtStart));
-                Row(Lang.T("info.rows_kept"), totals.RowsKept.ToString("N0", CultureInfo.CurrentCulture));
+                Row(Lang.T("info.rows_kept"), totals.Kept.ToString("N0", CultureInfo.CurrentCulture));
             }
             if (totals.MatchRate is { } rate)
                 Row(Lang.T("info.match_rate"), rate.ToString("P1", CultureInfo.CurrentCulture));
@@ -179,7 +180,11 @@ internal sealed partial class MainWindow
             var t = runtime.GetTotals();
             text.AppendLine(CultureInfo.InvariantCulture, $"Pack: {runtime.Info.PackId} ({runtime.Info.Sheets} sheets, {runtime.Info.Cells} cells, {runtime.UntranslatedSheets} sheets kept untranslated)");
             text.AppendLine(CultureInfo.InvariantCulture, $"Applied {t.Applied}, source changed {t.SourceChanged}, rows {t.RowsRebuilt}, unexpected rows {t.RowsUnexpected}, layout mismatch sheets {t.LayoutMismatchSheets}");
-            text.AppendLine(CultureInfo.InvariantCulture, $"Plugin compatibility: {(info.CompatibilityAtStart.Count == 0 ? "none" : string.Join(", ", info.CompatibilityAtStart))}; rows kept {t.RowsKept}");
+            text.AppendLine(CultureInfo.InvariantCulture, $"Plugin compatibility: {(info.CompatibilityAtStart.Count == 0 ? "none" : string.Join(", ", info.CompatibilityAtStart))}; lines kept {t.Kept}");
+            if (info.CompatibilityError is not null)
+                text.AppendLine(CultureInfo.InvariantCulture, $"Plugin compatibility error: {info.CompatibilityError}");
+            foreach (var error in CompatibilityProfile.LoadErrors)
+                text.AppendLine(CultureInfo.InvariantCulture, $"Compatibility profile skipped: {error}");
             foreach (var s in runtime.GetSheetStats())
                 text.AppendLine(CultureInfo.InvariantCulture, $"  {s.SheetName}: applied {s.Applied}, changed {s.SourceChanged}, rows {s.RowsRebuilt}, unexpected {s.RowsUnexpected}, layout mismatch {s.LayoutMismatch}");
         }

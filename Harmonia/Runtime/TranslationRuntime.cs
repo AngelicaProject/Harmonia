@@ -10,6 +10,9 @@ public enum CellDecision
     // The running game's source string differs from the one the translation
     // was made for; the original text stays.
     SourceChanged,
+
+    // Another plugin looks for the original text (KeptRows).
+    Kept,
 }
 
 public sealed record PackRuntimeInfo(string PackId, string Title, string FilePath, int Sheets, int Cells);
@@ -28,7 +31,7 @@ public readonly record struct RuntimeTotals(
     long RowsRebuilt,
     long RowsUnexpected,
     int LayoutMismatchSheets,
-    long RowsKept)
+    long Kept)
 {
     // Share of guarded cells whose source still matched; null before any.
     public double? MatchRate => Applied + SourceChanged == 0 ? null : (double)Applied / (Applied + SourceChanged);
@@ -41,6 +44,8 @@ public sealed unsafe class TranslationRuntime : IDisposable
     private readonly HpkFile pack;
     private readonly bool[] untranslated;
     private readonly IReadOnlySet<uint>?[] keptRows;
+    private readonly HashSet<ushort>?[] keptOrdinals;
+    private readonly Dictionary<uint, HashSet<ushort>>?[] keptCells;
     private readonly long[] kept;
     private readonly long[] applied;
     private readonly long[] changed;
@@ -66,6 +71,8 @@ public sealed unsafe class TranslationRuntime : IDisposable
         kept = new long[sheets];
         untranslated = new bool[sheets];
         keptRows = new IReadOnlySet<uint>?[sheets];
+        keptOrdinals = new HashSet<ushort>?[sheets];
+        keptCells = new Dictionary<uint, HashSet<ushort>>?[sheets];
         for (var i = 0; i < sheets; i++)
         {
             var name = pack.SheetNames[i];
@@ -74,6 +81,10 @@ public sealed unsafe class TranslationRuntime : IDisposable
                 UntranslatedSheets++;
             untranslated[i] = byPlayer || keep?.KeepsSheet(name) == true;
             keptRows[i] = keep?.RowsOf(name);
+            if (keep?.ColumnsOfEveryRow(name) is { } columns)
+                keptOrdinals[i] = Ordinals(i, columns);
+            if (keep?.CellsOf(name) is { } cells)
+                keptCells[i] = cells.ToDictionary(static c => c.Key, c => Ordinals(i, c.Value));
         }
 
         Info = new PackRuntimeInfo(packId, pack.Manifest.Title, filePath, pack.SheetCount, pack.CellCount);
@@ -111,15 +122,23 @@ public sealed unsafe class TranslationRuntime : IDisposable
         if (keptRows[sheet] is not { } keptIds || !keptIds.Contains(rowId))
             return true;
 
-        Interlocked.Increment(ref kept[sheet]);
+        Interlocked.Add(ref kept[sheet], row.CellCount);
         row = default;
         return false;
     }
 
     public HpkCell GetCell(HpkRow row, int index, out ushort ordinal) => pack.GetCell(row, index, out ordinal);
 
-    public CellDecision Decide(int sheet, HpkCell cell, ReadOnlySpan<byte> source)
+    // ordinal is the cell's position among the sheet's String columns.
+    public CellDecision Decide(int sheet, uint rowId, ushort ordinal, HpkCell cell, ReadOnlySpan<byte> source)
     {
+        if (keptOrdinals[sheet]?.Contains(ordinal) == true ||
+            (keptCells[sheet] is { } cells && cells.TryGetValue(rowId, out var ordinals) && ordinals.Contains(ordinal)))
+        {
+            Interlocked.Increment(ref kept[sheet]);
+            return CellDecision.Kept;
+        }
+
         if (SourceGuard.Compute(source) != cell.SourceGuard)
         {
             Interlocked.Increment(ref changed[sheet]);
@@ -128,6 +147,21 @@ public sealed unsafe class TranslationRuntime : IDisposable
 
         Interlocked.Increment(ref applied[sheet]);
         return CellDecision.Applied;
+    }
+
+    // Positions in the pack layout of the given game column indexes.
+    private HashSet<ushort> Ordinals(int sheet, IEnumerable<uint> columns)
+    {
+        var layout = pack.GetLayout(sheet);
+        var result = new HashSet<ushort>();
+        foreach (var column in columns)
+        {
+            var ordinal = Array.FindIndex(layout, l => l.ColumnIndex == column);
+            if (ordinal >= 0)
+                result.Add((ushort)ordinal);
+        }
+
+        return result;
     }
 
     public void CountRebuilt(int sheet) => Interlocked.Increment(ref rebuilt[sheet]);

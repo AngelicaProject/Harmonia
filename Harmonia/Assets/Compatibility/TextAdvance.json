@@ -1,0 +1,178 @@
+{
+  "plugin": "TextAdvance",
+  "name": "TextAdvance",
+  "optional": [
+    {
+      "require": [
+        {
+          "config": "TextAdvance/DefaultConfig.json",
+          "path": "Navmesh",
+          "equals": true,
+          "default": false
+        }
+      ],
+      "rows": {
+        "GeneralAction": [
+          2
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "TextAdvance/DefaultConfig.json",
+          "path": "MainConfig.EnableCutsceneSkipConfirm",
+          "equals": true,
+          "default": true
+        }
+      ],
+      "rows": {
+        "Addon": [
+          3,
+          281,
+          5882
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "TextAdvance/DefaultConfig.json",
+          "path": "UseSprintPeloton",
+          "equals": true,
+          "default": true
+        }
+      ],
+      "cells": [
+        {
+          "sheet": "Action",
+          "columns": [
+            0
+          ],
+          "rows": [
+            3,
+            7557
+          ]
+        }
+      ],
+      "require": [
+        {
+          "config": "TextAdvance/DefaultConfig.json",
+          "path": "Navmesh",
+          "equals": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "when": [
+        {
+          "config": "TextAdvance/DefaultConfig.json",
+          "path": "Mount",
+          "notEquals": -1,
+          "default": true
+        }
+      ],
+      "cells": [
+        {
+          "sheet": "Mount",
+          "columns": [
+            0
+          ]
+        }
+      ],
+      "require": [
+        {
+          "config": "TextAdvance/DefaultConfig.json",
+          "path": "Navmesh",
+          "equals": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "when": [
+        {
+          "config": "TextAdvance/DefaultConfig.json",
+          "path": "MainConfig.EnableRewardPick",
+          "equals": true,
+          "default": true
+        }
+      ],
+      "cells": [
+        {
+          "sheet": "Item",
+          "columns": [
+            0,
+            9
+          ],
+          "rows": [
+            20601,
+            20602,
+            20603,
+            20604,
+            20605,
+            20606,
+            20607,
+            20608,
+            20609,
+            20610,
+            20611,
+            20612,
+            26879,
+            26880,
+            26881,
+            26882,
+            26883,
+            26884,
+            26885,
+            26886,
+            26887,
+            26888,
+            26889,
+            26890,
+            26903,
+            26904,
+            26905,
+            26906,
+            26907,
+            35717,
+            35718,
+            35719,
+            35720,
+            35721,
+            35722,
+            35723,
+            35724,
+            35725,
+            35726,
+            35727,
+            35728,
+            35729,
+            35730,
+            35731,
+            35732,
+            35733,
+            44275,
+            44276,
+            44277,
+            44278,
+            44279,
+            44280,
+            44281,
+            44282,
+            44283,
+            44284,
+            44285,
+            44286,
+            44287,
+            44288,
+            44289,
+            44290,
+            44291
+          ]
+        }
+      ]
+    }
+  ]
+}

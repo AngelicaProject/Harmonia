@@ -11,14 +11,14 @@ namespace Harmonia.UI;
 // plugins leave the translation incomplete and can turn each one off.
 internal sealed partial class MainWindow
 {
-    private static readonly TimeSpan InstalledRefresh = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan InstalledRefresh = TimeSpan.FromSeconds(5);
 
-    private readonly Func<IEnumerable<string>> installedPlugins;
+    private readonly Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles;
     private IReadOnlyList<CompatibilityProfile> installedProfiles = [];
     private DateTime installedCheckedAt = DateTime.MinValue;
 
-    // Profiles of the plugins installed now; plugins can be installed or
-    // removed while the game runs.
+    // Profiles of the plugins installed now that keep text with their current
+    // settings; plugins and their settings change while the game runs.
     private IReadOnlyList<CompatibilityProfile> InstalledProfiles
     {
         get
@@ -27,7 +27,7 @@ internal sealed partial class MainWindow
             if (now - installedCheckedAt >= InstalledRefresh)
             {
                 installedCheckedAt = now;
-                installedProfiles = CompatibilityProfile.Installed(CompatibilityProfile.All, installedPlugins());
+                installedProfiles = relevantProfiles();
             }
 
             return installedProfiles;

@@ -229,7 +229,7 @@ public sealed unsafe class ExcelRowHooks : IDisposable
 
             var original = strings[ordinal];
             var source = new ReadOnlySpan<byte>(data + original.Start, original.Length);
-            if (runtime.Decide(packSheet, cell, source) != CellDecision.Applied)
+            if (runtime.Decide(packSheet, descriptor->RowId, ordinal, cell, source) != CellDecision.Applied)
                 continue;
 
             replacements[ordinal] = new Replacement(cell.String, cell.Length);

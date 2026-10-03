@@ -101,7 +101,10 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
         string? packError = null;
         string? hookError = null;
+        string? compatibilityError = null;
         IReadOnlyList<CompatibilityProfile> compatibility = [];
+        // Other plugins keep their settings next to Harmonia's own directory.
+        var pluginConfigs = pluginInterface.ConfigDirectory.Parent?.FullName ?? dataDir;
         if (!reloaded && !string.IsNullOrEmpty(configuration.ActivePackId))
         {
             var selected = packs.TryGet(configuration.ActivePackId);
@@ -113,15 +116,31 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             else
             {
                 fonts = new GameFonts(pluginInterface, framework, scanner, dataManager, file, Path.Combine(dataDir, FontCacheDirName), log);
-                // Plugins load after Harmonia, so being installed is what counts.
-                compatibility = CompatibilityProfile.Installed(CompatibilityProfile.All, InstalledPluginNames(pluginInterface))
-                    .Where(p => CompatibilityProfile.IsOn(p, configuration.DisabledCompatibility))
-                    .ToList();
-                var sources = new CompatibilitySources(dataManager, log);
+                // Compatibility only ever keeps text: whatever fails in it
+                // (another plugin's settings, the game data, a profile), the
+                // translation applies as if no plugin were installed.
+                KeptRows? keep = null;
+                try
+                {
+                    // Plugins load after Harmonia, so being installed is what counts.
+                    compatibility = RelevantProfiles(pluginInterface, pluginConfigs)
+                        .Where(p => CompatibilityProfile.IsOn(p, configuration.DisabledCompatibility))
+                        .ToList();
+                    var sources = new CompatibilitySources(dataManager, log);
+                    keep = CompatibilityProfile.Keep(compatibility, sources.Rows, c => c.Holds(pluginConfigs));
+                    if (compatibility.Count > 0)
+                        log.Info("Kept in the game's language for plugin compatibility: " + string.Join(", ", compatibility.Select(static p => p.Plugin)));
+                }
+                catch (Exception ex)
+                {
+                    compatibility = [];
+                    keep = null;
+                    compatibilityError = ex.Message;
+                    log.Error("Plugin compatibility could not be prepared; everything is translated.", ex);
+                }
+
                 runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
-                    new SheetFilter(configuration.UntranslatedSheets), CompatibilityProfile.Keep(compatibility, sources.Rows));
-                if (compatibility.Count > 0)
-                    log.Info("Kept in the game's language for plugin compatibility: " + string.Join(", ", compatibility.Select(static p => p.Plugin)));
+                    new SheetFilter(configuration.UntranslatedSheets), keep);
                 try
                 {
                     hooks = new ExcelRowHooks(interop, scanner, runtime, log);
@@ -177,9 +196,9 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)]),
+                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError),
             pluginInterface.UiBuilder,
-            () => InstalledPluginNames(pluginInterface));
+            () => RelevantProfiles(pluginInterface, pluginConfigs));
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
             IsOpen = reloaded,
@@ -233,10 +252,29 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
     private void Save() => pluginInterface.SavePluginConfig(configuration);
 
+    // Profiles of installed plugins that keep text with their current
+    // settings; none when that cannot be told (the window asks every few
+    // seconds and must keep drawing).
+    private static IReadOnlyList<CompatibilityProfile> RelevantProfiles(IDalamudPluginInterface pluginInterface, string pluginConfigs)
+    {
+        try
+        {
+            return CompatibilityProfile.Installed(CompatibilityProfile.All, InstalledPluginNames(pluginInterface))
+                .Where(p => p.KeepsAnything(c => c.Holds(pluginConfigs)))
+                .ToList();
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+    }
+
+    // Both names: a plugin's manifest and its repository can disagree on the
+    // internal one ("PandorasBox" and "Pandora's Box").
     private static IEnumerable<string> InstalledPluginNames(IDalamudPluginInterface pluginInterface) =>
         pluginInterface.InstalledPlugins
             .Where(static p => !p.IsBanned && !p.IsDecommissioned)
-            .Select(static p => p.InternalName);
+            .SelectMany(static p => new[] { p.InternalName, p.Name });
 
     // The client may not report its version when the plugin loads; retry on
     // framework ticks (throttled by the store) until it is known.

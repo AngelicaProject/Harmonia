@@ -1,0 +1,9 @@
+{
+  "plugin": "Artisan",
+  "name": "Artisan",
+  "rows": {
+    "Addon": [98, 773, 2378, 2383, 13530],
+    "LogMessage": [1144, 1145, 1146, 1147],
+    "EObjName": [2000401]
+  }
+}
