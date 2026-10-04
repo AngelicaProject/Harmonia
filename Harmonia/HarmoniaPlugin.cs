@@ -55,7 +55,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         ISigScanner scanner,
         IClientState clientState,
         IDataManager dataManager,
-        IContextMenu contextMenu)
+        IContextMenu contextMenu,
+        ITextureProvider textures)
     {
         this.pluginInterface = pluginInterface;
         this.framework = framework;
@@ -197,6 +198,9 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             runtime?.Info.PackId);
         feeds.Start();
 
+        if (dictionary is not null)
+            lookup = new NameLookup(dictionary, commands, chat, contextMenu, framework, notifications, log, OpenDictionary);
+
         mainWindow = new MainWindow(
             configuration,
             Save,
@@ -206,8 +210,9 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary),
+                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup),
             pluginInterface.UiBuilder,
+            textures,
             () => RelevantProfiles(pluginInterface, pluginConfigs));
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
@@ -220,8 +225,6 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         {
             HelpMessage = Lang.T("command.help"),
         });
-        if (dictionary is not null)
-            lookup = new NameLookup(dictionary, commands, chat, contextMenu, framework, notifications, log);
         pluginInterface.UiBuilder.Draw += windows.Draw;
         pluginInterface.UiBuilder.OpenMainUi += mainWindow.Toggle;
         pluginInterface.UiBuilder.OpenConfigUi += mainWindow.Toggle;
@@ -267,6 +270,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     }
 
     private void Save() => pluginInterface.SavePluginConfig(configuration);
+
+    private void OpenDictionary() => mainWindow.OpenDictionary();
 
     // Profiles of installed plugins that keep text with their current
     // settings; none when that cannot be told (the window asks every few

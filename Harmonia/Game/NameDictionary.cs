@@ -12,6 +12,9 @@ using LuminaAction = Lumina.Excel.Sheets.Action;
 
 namespace Harmonia.Game;
 
+// Icon is a game icon id, 0 for none.
+internal readonly record struct NameDetails(uint Icon, bool CanTryOn, bool Marketable);
+
 internal static class GameLanguages
 {
     public static readonly ClientLanguage[] All = [ClientLanguage.English, ClientLanguage.Japanese, ClientLanguage.German, ClientLanguage.French];
@@ -43,11 +46,25 @@ internal sealed class NameDictionary(IDataManager data, TranslationRuntime runti
 
     public ClientLanguage ClientLanguage => data.Language;
 
-    public async Task<NameSearchResult> SearchAsync(string query, int limit)
+    public async Task<NameSearchResult> SearchAsync(string query, int limit, NameCategory? category = null, CancellationToken cancellationToken = default)
     {
-        var token = stopping.Token;
-        var built = await GetIndexAsync().ConfigureAwait(false);
-        return await Task.Run(() => built.Search(query, limit, token), token).ConfigureAwait(false);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(stopping.Token, cancellationToken);
+        var token = linked.Token;
+        var built = await GetIndexAsync().WaitAsync(token).ConfigureAwait(false);
+        return await Task.Run(() => built.Search(query, limit, category, token), token).ConfigureAwait(false);
+    }
+
+    // Starts building the index ahead of a search. Called every frame the
+    // dictionary page is shown, so a failed build waits for a search to retry.
+    public void Prepare()
+    {
+        lock (gate)
+        {
+            if (index is not null || disposed)
+                return;
+        }
+
+        _ = GetIndexAsync();
     }
 
     // The name in the client language as the game files have it.
@@ -55,6 +72,34 @@ internal sealed class NameDictionary(IDataManager data, TranslationRuntime runti
         data.GetExcelSheet<Item>(data.Language).GetRowOrDefault(itemId) is { } item && NameText.Plain(item.Name.Data.Span) is { Length: > 0 } name
             ? name
             : null;
+
+    // What the dictionary window draws next to a name; read from the game
+    // files when shown rather than kept for every name.
+    public NameDetails Describe(NameEntry entry)
+    {
+        try
+        {
+            return entry.Category switch
+            {
+                NameCategory.Item when data.GetExcelSheet<Item>().GetRowOrDefault(entry.RowId) is { } item =>
+                    new NameDetails(item.Icon, item.EquipSlotCategory.RowId != 0, item.ItemSearchCategory.RowId != 0),
+                NameCategory.Action when data.GetExcelSheet<LuminaAction>().GetRowOrDefault(entry.RowId) is { } action =>
+                    new NameDetails(action.Icon, false, false),
+                NameCategory.Status when data.GetExcelSheet<Status>().GetRowOrDefault(entry.RowId) is { } status =>
+                    new NameDetails(status.Icon, false, false),
+                NameCategory.Duty when data.GetExcelSheet<ContentFinderCondition>().GetRowOrDefault(entry.RowId) is { } duty =>
+                    new NameDetails(duty.ContentType.ValueNullable?.Icon ?? 0, false, false),
+                NameCategory.Quest when data.GetExcelSheet<Quest>().GetRowOrDefault(entry.RowId) is { } quest =>
+                    new NameDetails((uint)Math.Max(0, quest.JournalGenre.ValueNullable?.Icon ?? 0), false, false),
+                _ => default,
+            };
+        }
+        catch (Exception ex)
+        {
+            log.Warning($"Name dictionary: {entry.Category} {entry.RowId} could not be described ({ex.Message}).");
+            return default;
+        }
+    }
 
     // The shown languages changed: the next search builds again.
     public void Invalidate()
@@ -118,6 +163,7 @@ internal sealed class NameDictionary(IDataManager data, TranslationRuntime runti
             Add<Status>(names, NameCategory.Status, nameof(Status), static r => r.Name, extraLanguages, token);
             Add<PlaceName>(names, NameCategory.Place, nameof(PlaceName), static r => r.Name, extraLanguages, token);
             Add<ContentFinderCondition>(names, NameCategory.Duty, nameof(ContentFinderCondition), static r => r.Name, extraLanguages, token);
+            Add<Quest>(names, NameCategory.Quest, nameof(Quest), static r => r.Name, extraLanguages, token);
             var built = NameIndex.Build(names);
             log.Info($"Name dictionary: {built.Count} names in {clock.ElapsedMilliseconds} ms.");
             return built;

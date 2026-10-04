@@ -13,8 +13,9 @@ using Harmonia.Localization;
 namespace Harmonia.Game;
 
 // Where players reach the name dictionary: /hfind prints matches into the
-// chat log (items as links, so the game's own item menu works on them), and
-// item menus copy the name in the game's language.
+// chat log (items as links, so the game's own item menu works on them) or,
+// without a name, opens the dictionary window; item menus copy the name in
+// the game's language. Also the actions of the dictionary window.
 internal sealed class NameLookup : IDisposable
 {
     public const string FindCommand = "/hfind";
@@ -32,6 +33,7 @@ internal sealed class NameLookup : IDisposable
     private readonly IFramework framework;
     private readonly INotificationManager notifications;
     private readonly IHarmoniaLog log;
+    private readonly Action openWindow;
 
     public NameLookup(
         NameDictionary dictionary,
@@ -40,7 +42,8 @@ internal sealed class NameLookup : IDisposable
         IContextMenu contextMenu,
         IFramework framework,
         INotificationManager notifications,
-        IHarmoniaLog log)
+        IHarmoniaLog log,
+        Action openWindow)
     {
         this.dictionary = dictionary;
         this.commands = commands;
@@ -49,6 +52,7 @@ internal sealed class NameLookup : IDisposable
         this.framework = framework;
         this.notifications = notifications;
         this.log = log;
+        this.openWindow = openWindow;
 
         commands.AddHandler(FindCommand, new CommandInfo(OnFind)
         {
@@ -66,6 +70,12 @@ internal sealed class NameLookup : IDisposable
     private void OnFind(string command, string arguments)
     {
         var query = arguments.Trim();
+        if (query.Length == 0)
+        {
+            openWindow();
+            return;
+        }
+
         if (NameText.Normalize(query).Length < NameIndex.MinQueryLength)
         {
             chat.Print(Lang.T("dictionary.usage"), ChatTag);
@@ -128,18 +138,19 @@ internal sealed class NameLookup : IDisposable
         }
 
         if (result.Total > result.Matches.Count)
-            text.Add(NewLinePayload.Payload).AddText(Lang.T("dictionary.more", result.Total - result.Matches.Count));
+            text.Add(NewLinePayload.Payload).AddText(Lang.T("dictionary.more", result.Total - result.Matches.Count, FindCommand));
 
         return text.Build();
     }
 
-    private static string CategoryName(NameCategory category) => category switch
+    public static string CategoryName(NameCategory category) => category switch
     {
         NameCategory.Item => Lang.T("dictionary.category_item"),
         NameCategory.Action => Lang.T("dictionary.category_action"),
         NameCategory.Status => Lang.T("dictionary.category_status"),
         NameCategory.Place => Lang.T("dictionary.category_place"),
         NameCategory.Duty => Lang.T("dictionary.category_duty"),
+        NameCategory.Quest => Lang.T("dictionary.category_quest"),
         _ => category.ToString(),
     };
 
@@ -179,15 +190,39 @@ internal sealed class NameLookup : IDisposable
         return 0;
     }
 
-    private void Copy(string name)
+    public void Copy(string name)
     {
         ImGui.SetClipboardText(name);
+        Notify(Lang.T("dictionary.copied", name));
+    }
+
+    // The item as a link in the chat log, where the game's own item menu
+    // links it to a channel.
+    public void PrintLink(NameEntry item) =>
+        Run(() => chat.Print(new SeStringBuilder().AddItemLink(item.RowId, false, item.Shown).Build(), ChatTag));
+
+    public unsafe void TryOn(uint itemId) =>
+        Run(() =>
+        {
+            var agent = AgentTryon.Instance();
+            if (agent != null)
+                AgentTryon.TryOn(0, itemId, 0, 0, 0, false);
+        });
+
+    public void OpenSite(string url) => Util.OpenLink(url);
+
+    // Game functions run on the framework thread.
+    private void Run(System.Action action) =>
+        framework.RunOnFrameworkThread(action).ContinueWith(
+            t => log.Warning("A dictionary action failed: " + t.Exception?.GetBaseException().Message),
+            TaskContinuationOptions.OnlyOnFaulted);
+
+    private void Notify(string text) =>
         notifications.AddNotification(new Notification
         {
             Title = "Harmonia",
-            Content = Lang.T("dictionary.copied", name),
+            Content = text,
             Type = NotificationType.Success,
-            InitialDuration = TimeSpan.FromSeconds(3),
+            InitialDuration = TimeSpan.FromSeconds(4),
         });
-    }
 }

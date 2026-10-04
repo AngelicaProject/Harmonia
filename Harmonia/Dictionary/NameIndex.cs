@@ -8,6 +8,7 @@ public enum NameCategory
     Status,
     Place,
     Duty,
+    Quest,
 }
 
 // A name in the game's language (Language is a pack language tag).
@@ -21,7 +22,12 @@ public sealed record NameEntry(NameCategory Category, uint RowId, string Shown, 
     public bool IsTranslated => Originals.Count == 0 || !string.Equals(Shown, Originals[0].Text, StringComparison.Ordinal);
 }
 
-public sealed record NameSearchResult(IReadOnlyList<NameEntry> Matches, int Total);
+// Total counts the matches of the searched category; ByCategory counts the
+// matches of every category, whatever was searched.
+public sealed record NameSearchResult(IReadOnlyList<NameEntry> Matches, int Total, IReadOnlyDictionary<NameCategory, int> ByCategory)
+{
+    public static readonly NameSearchResult Empty = new([], 0, new Dictionary<NameCategory, int>());
+}
 
 // Every name of the session in every indexed language, searchable by any of
 // them. Immutable once built; searches may run on any thread.
@@ -70,7 +76,8 @@ public sealed class NameIndex
         return new NameIndex([.. items]);
     }
 
-    public NameSearchResult Search(string query, int limit, CancellationToken cancellationToken = default)
+    // category null searches every category.
+    public NameSearchResult Search(string query, int limit, NameCategory? category = null, CancellationToken cancellationToken = default)
     {
         var queries = new List<(Query Query, int Penalty)>();
         var normalized = NameText.Normalize(query);
@@ -80,19 +87,45 @@ public sealed class NameIndex
             other != normalized)
             queries.Add((new Query(other, other.Split(' ')), SwappedLayoutPenalty));
         if (queries.Count == 0)
-            return new NameSearchResult([], 0);
+            return NameSearchResult.Empty;
 
+        // Typos only count when nothing matches as typed, so the costly
+        // typo pass runs only then.
+        var scored = Collect(queries, false, cancellationToken);
+        if (scored.Count == 0)
+            scored = Collect(queries, true, cancellationToken);
+
+        var byCategory = scored.CountBy(static s => s.Item.Entry.Category).ToDictionary();
+        if (category is { } only)
+            scored.RemoveAll(s => s.Item.Entry.Category != only);
+
+        var matches = scored
+            .OrderByDescending(static s => s.Score)
+            .ThenBy(static s => s.Closeness)
+            .ThenBy(static s => s.Item.Entry.Category)
+            .ThenBy(static s => s.Item.Entry.RowId)
+            .Take(limit)
+            .Select(static s => s.Item.Entry)
+            .ToList();
+        return new NameSearchResult(matches, scored.Count, byCategory);
+    }
+
+    private List<(Item Item, int Score, int Closeness)> Collect(List<(Query Query, int Penalty)> queries, bool typos, CancellationToken cancellationToken)
+    {
         var scored = new List<(Item Item, int Score, int Closeness)>();
-        foreach (var item in items)
+        for (var i = 0; i < items.Length; i++)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if ((i & 1023) == 0)
+                cancellationToken.ThrowIfCancellationRequested();
+
+            var item = items[i];
             var best = 0;
             var closeness = int.MaxValue;
             foreach (var (q, penalty) in queries)
             {
                 foreach (var form in item.Forms)
                 {
-                    var score = Score(form, q);
+                    var score = typos ? FuzzyScore(form, q.Words) : Score(form, q);
                     if (score == 0)
                         continue;
                     score -= penalty;
@@ -109,33 +142,29 @@ public sealed class NameIndex
                 scored.Add((item, best, closeness));
         }
 
-        // Typos only count when nothing matches as typed.
-        if (scored.Any(static s => s.Score > Fuzzy))
-            scored.RemoveAll(static s => s.Score <= Fuzzy);
-
-        var matches = scored
-            .OrderByDescending(static s => s.Score)
-            .ThenBy(static s => s.Closeness)
-            .ThenBy(static s => s.Item.Entry.Category)
-            .ThenBy(static s => s.Item.Entry.RowId)
-            .Take(limit)
-            .Select(static s => s.Item.Entry)
-            .ToList();
-        return new NameSearchResult(matches, scored.Count);
+        return scored;
     }
 
+    // As typed: 0 when only a typo pass could match.
     private static int Score(string text, Query query)
     {
         var q = query.Text;
         if (text == q)
             return Exact;
+
+        // Every match as typed contains every query word; most names
+        // contain none, and this vectorized check rejects them.
+        foreach (var word in query.Words)
+        {
+            if (!text.Contains(word, StringComparison.Ordinal))
+                return 0;
+        }
+
         if (text.StartsWith(q, StringComparison.Ordinal))
             return Prefix;
         if (AllWordsStart(text, query.Words))
             return Words;
-        if (text.Contains(q, StringComparison.Ordinal))
-            return Substring;
-        return FuzzyScore(text, query.Words);
+        return text.Contains(q, StringComparison.Ordinal) ? Substring : 0;
     }
 
     // Every query word starts a different word of the name, in any order.

@@ -5,6 +5,7 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 using Harmonia.Compatibility;
 using Harmonia.Feeds;
 using Harmonia.Game;
@@ -30,13 +31,15 @@ internal sealed record SessionInfo(
     TextCaseHooks? CaseHooks,
     IReadOnlyList<string> CompatibilityAtStart,
     string? CompatibilityError,
-    NameDictionary? Dictionary);
+    NameDictionary? Dictionary,
+    NameLookup? Lookup);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {
     private enum Page
     {
         Translations,
+        Dictionary,
         Content,
         Settings,
         Diagnostics,
@@ -53,6 +56,7 @@ internal sealed partial class MainWindow : Window, IDisposable
     private readonly FileDialogManager fileDialog = new();
     private readonly IFontHandle headingFont;
     private readonly IFontHandle largeIconFont;
+    private readonly ITextureProvider textures;
 
     private Page page = Page.Translations;
 
@@ -66,6 +70,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         SessionState session,
         SessionInfo info,
         IUiBuilder uiBuilder,
+        ITextureProvider textures,
         Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles)
         : base("Harmonia###harmonia_main")
     {
@@ -78,6 +83,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         this.session = session;
         this.info = info;
         this.relevantProfiles = relevantProfiles;
+        this.textures = textures;
         headingFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(MathF.Round(UiBuilder.DefaultFontSizePx * 1.25f))));
         largeIconFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = MathF.Round(UiBuilder.DefaultFontSizePx * 1.6f) })));
 
@@ -94,6 +100,8 @@ internal sealed partial class MainWindow : Window, IDisposable
     {
         pendingImport?.Dispose();
         pendingImport = null;
+        dictionaryCancel?.Cancel();
+        dictionaryCancel?.Dispose();
         headingFont.Dispose();
         largeIconFont.Dispose();
     }
@@ -112,6 +120,9 @@ internal sealed partial class MainWindow : Window, IDisposable
                 {
                     case Page.Translations:
                         DrawTranslations();
+                        break;
+                    case Page.Dictionary:
+                        DrawDictionary();
                         break;
                     case Page.Content:
                         DrawContent();
@@ -141,6 +152,8 @@ internal sealed partial class MainWindow : Window, IDisposable
             return;
 
         NavItem(Page.Translations, FontAwesomeIcon.Language, Lang.T("nav.translations"), feedState.AvailableCount > 0);
+        if (info.Dictionary is not null)
+            NavItem(Page.Dictionary, FontAwesomeIcon.Book, Lang.T("nav.dictionary"), false);
         NavItem(Page.Content, FontAwesomeIcon.ListUl, Lang.T("nav.content"), false);
         NavItem(Page.Settings, FontAwesomeIcon.Cog, Lang.T("nav.settings"), false);
         NavItem(Page.Diagnostics, FontAwesomeIcon.Heartbeat, Lang.T("nav.diagnostics"), HasProblem);

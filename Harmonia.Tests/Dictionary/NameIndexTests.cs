@@ -64,6 +64,16 @@ public sealed class NameIndexTests
     }
 
     [Fact]
+    public void Filters_by_category_but_counts_every_category()
+    {
+        var result = Index.Search("holy", 10, NameCategory.Status);
+        Assert.Equal(1, result.Total);
+        Assert.Equal(NameCategory.Status, Assert.Single(result.Matches).Category);
+        Assert.Equal(1, result.ByCategory[NameCategory.Action]);
+        Assert.Equal(1, result.ByCategory[NameCategory.Status]);
+    }
+
+    [Fact]
     public void Limits_the_matches_but_counts_them_all()
     {
         var result = Index.Search("credendum", 1);
