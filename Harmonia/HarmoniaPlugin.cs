@@ -38,6 +38,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly ExcelRowHooks? hooks;
     private readonly TextCaseHooks? caseHooks;
     private readonly GameFonts? fonts;
+    private readonly NameDictionary? dictionary;
+    private readonly NameLookup? lookup;
     private readonly WindowSystem windows = new("Harmonia");
     private readonly MainWindow mainWindow;
     private readonly RestartWindow restartWindow;
@@ -52,7 +54,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         IGameInteropProvider interop,
         ISigScanner scanner,
         IClientState clientState,
-        IDataManager dataManager)
+        IDataManager dataManager,
+        IContextMenu contextMenu)
     {
         this.pluginInterface = pluginInterface;
         this.framework = framework;
@@ -167,6 +170,10 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                         log.Error("Letter case hooks could not be installed; capitalized names stay lowercase.", ex);
                     }
                 }
+
+                // Without the hooks the game shows no translation to look up.
+                if (hooks is not null)
+                    dictionary = new NameDictionary(dataManager, runtime, configuration, log);
             }
         }
 
@@ -199,7 +206,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError),
+                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary),
             pluginInterface.UiBuilder,
             () => RelevantProfiles(pluginInterface, pluginConfigs));
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
@@ -213,6 +220,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         {
             HelpMessage = Lang.T("command.help"),
         });
+        if (dictionary is not null)
+            lookup = new NameLookup(dictionary, commands, chat, contextMenu, framework, notifications, log);
         pluginInterface.UiBuilder.Draw += windows.Draw;
         pluginInterface.UiBuilder.OpenMainUi += mainWindow.Toggle;
         pluginInterface.UiBuilder.OpenConfigUi += mainWindow.Toggle;
@@ -242,9 +251,13 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         windows.RemoveAllWindows();
         mainWindow.Dispose();
         commands.RemoveHandler(CommandName);
+        lookup?.Dispose();
 
         feeds.Dispose();
         fonts?.Dispose();
+
+        // Waits for a running build: it reads translations from the pack.
+        dictionary?.Dispose();
 
         caseHooks?.Dispose();
 
@@ -300,13 +313,6 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         }
     }
 
-    // Pack source language tags of the client languages.
-    private static string? ClientLanguageTag(ClientLanguage language) => language switch
-    {
-        ClientLanguage.Japanese => "ja",
-        ClientLanguage.English => "en",
-        ClientLanguage.German => "de",
-        ClientLanguage.French => "fr",
-        _ => null,
-    };
+    private static string? ClientLanguageTag(ClientLanguage language) =>
+        GameLanguages.All.Contains(language) ? GameLanguages.Tag(language) : null;
 }

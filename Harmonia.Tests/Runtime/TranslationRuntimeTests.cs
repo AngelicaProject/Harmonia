@@ -77,6 +77,26 @@ public sealed class TranslationRuntimeTests
     }
 
     [Fact]
+    public unsafe void Lookups_outside_the_hook_follow_its_rules_and_count_nothing()
+    {
+        var keep = new KeptRows();
+        keep.AddRows("Addon", [7]);
+        using var runtime = new TranslationRuntime(
+            HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full), "test", "test.hpk", keep: keep);
+
+        Assert.Equal(-1, runtime.FindSheet("Addon", false, [new StringColumn(0, 4)]));
+        var addon = runtime.FindSheet("Addon", false, AddonColumns);
+        Assert.True(addon >= 0);
+
+        Assert.True(runtime.TryGetShown(addon, 1, 0, 1, "World"u8, out var cell));
+        Assert.Equal("Мир", Encoding.UTF8.GetString(cell.String, cell.Length));
+        Assert.False(runtime.TryGetShown(addon, 1, 0, 1, "World!"u8, out _));
+        Assert.False(runtime.TryGetShown(addon, 1, 0, 0, "World"u8, out _));
+        Assert.False(runtime.TryGetShown(addon, 7, 0, 1, "Hi"u8, out _));
+        Assert.Equal(default, runtime.GetTotals());
+    }
+
+    [Fact]
     public void Sheets_kept_in_the_game_language_are_not_bound()
     {
         using var runtime = new TranslationRuntime(

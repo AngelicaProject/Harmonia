@@ -29,7 +29,8 @@ internal sealed record SessionInfo(
     IReadOnlyList<string> UntranslatedAtStart,
     TextCaseHooks? CaseHooks,
     IReadOnlyList<string> CompatibilityAtStart,
-    string? CompatibilityError);
+    string? CompatibilityError,
+    NameDictionary? Dictionary);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {

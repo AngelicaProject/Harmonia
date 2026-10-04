@@ -125,7 +125,7 @@ public static class SeStringCheck
     // Integers are one byte (value + 1) below 0xCF; otherwise a marker 0xF0..0xFE
     // whose low bits, plus one, flag which of the four big-endian bytes follow.
     // Present bytes are never zero.
-    private static bool TryReadUInt(ReadOnlySpan<byte> bytes, out uint value, out int length)
+    internal static bool TryReadUInt(ReadOnlySpan<byte> bytes, out uint value, out int length)
     {
         value = 0;
         length = 0;

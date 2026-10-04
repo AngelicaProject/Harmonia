@@ -33,6 +33,12 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public List<string> DisabledCompatibility { get; set; } = [];
 
+    /// <summary>
+    /// Game languages ("ja", "en", "de", "fr") the name dictionary shows next
+    /// to the client language's names. The client language is always shown.
+    /// </summary>
+    public List<string> DictionaryLanguages { get; set; } = [];
+
     /// <summary>Feed URLs polled for new releases.</summary>
     public List<string> UpdateFeedUrls { get; set; } = [];
 

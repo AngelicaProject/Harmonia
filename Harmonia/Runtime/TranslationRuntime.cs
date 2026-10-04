@@ -102,16 +102,25 @@ public sealed unsafe class TranslationRuntime : IDisposable
         if (!pack.TryGetSheet(sheetName, out var sheet) || untranslated[sheet])
             return -1;
 
-        var layout = pack.GetLayout(sheet);
-        var matches = pack.IsSubrowSheet(sheet) == multiRow && layout.Length == columns.Length;
-        for (var i = 0; matches && i < layout.Length; i++)
-            matches = layout[i].ColumnIndex == columns[i].Index && layout[i].Offset == columns[i].Offset;
-
-        if (matches)
+        if (LayoutMatches(sheet, multiRow, columns))
             return sheet;
 
         Volatile.Write(ref layoutMismatch[sheet], 1);
         return -1;
+    }
+
+    // BindSheet for readers outside the row hook (the name dictionary): the
+    // same rule, nothing recorded.
+    public int FindSheet(string sheetName, bool multiRow, ReadOnlySpan<StringColumn> columns) =>
+        pack.TryGetSheet(sheetName, out var sheet) && !untranslated[sheet] && LayoutMatches(sheet, multiRow, columns) ? sheet : -1;
+
+    private bool LayoutMatches(int sheet, bool multiRow, ReadOnlySpan<StringColumn> columns)
+    {
+        var layout = pack.GetLayout(sheet);
+        var matches = pack.IsSubrowSheet(sheet) == multiRow && layout.Length == columns.Length;
+        for (var i = 0; matches && i < layout.Length; i++)
+            matches = layout[i].ColumnIndex == columns[i].Index && layout[i].Offset == columns[i].Offset;
+        return matches;
     }
 
     // Every subrow of a kept row stays as the game has it.
@@ -132,8 +141,7 @@ public sealed unsafe class TranslationRuntime : IDisposable
     // ordinal is the cell's position among the sheet's String columns.
     public CellDecision Decide(int sheet, uint rowId, ushort ordinal, HpkCell cell, ReadOnlySpan<byte> source)
     {
-        if (keptOrdinals[sheet]?.Contains(ordinal) == true ||
-            (keptCells[sheet] is { } cells && cells.TryGetValue(rowId, out var ordinals) && ordinals.Contains(ordinal)))
+        if (IsKeptCell(sheet, rowId, ordinal))
         {
             Interlocked.Increment(ref kept[sheet]);
             return CellDecision.Kept;
@@ -148,6 +156,22 @@ public sealed unsafe class TranslationRuntime : IDisposable
         Interlocked.Increment(ref applied[sheet]);
         return CellDecision.Applied;
     }
+
+    // The translation the game shows in a cell whose running source string is
+    // `source`: the same decision as the row hook, without counting it. False
+    // when the game shows the source.
+    public bool TryGetShown(int sheet, uint rowId, ushort subrowId, ushort ordinal, ReadOnlySpan<byte> source, out HpkCell cell)
+    {
+        cell = default;
+        if (keptRows[sheet]?.Contains(rowId) == true || IsKeptCell(sheet, rowId, ordinal))
+            return false;
+
+        return pack.TryGetCell(sheet, rowId, subrowId, ordinal, out cell) && SourceGuard.Compute(source) == cell.SourceGuard;
+    }
+
+    private bool IsKeptCell(int sheet, uint rowId, ushort ordinal) =>
+        keptOrdinals[sheet]?.Contains(ordinal) == true ||
+        (keptCells[sheet] is { } cells && cells.TryGetValue(rowId, out var ordinals) && ordinals.Contains(ordinal));
 
     // Positions in the pack layout of the given game column indexes.
     private HashSet<ushort> Ordinals(int sheet, IEnumerable<uint> columns)

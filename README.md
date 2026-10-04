@@ -22,6 +22,8 @@ Translations added from a link update themselves. Turning a translation on or of
 
 After a game update, some text may stay in the original language until the translation's author updates it.
 
+Know a name only in the original, say from a guide or a market site? Type `/hfind` and the name in chat: Harmonia lists what the game calls it now, with items as links. It also works the other way, and with names typed in the wrong keyboard layout. Right-click an item in your inventory or a chat link and choose **Copy the original name** to share it with players who play without the translation. Names in other game languages can be turned on in **Settings**.
+
 Some translations add characters the game's own fonts don't have, such as Cyrillic in window titles and on the title screen. Those need **[Penumbra](https://github.com/xivdev/Penumbra)** installed and enabled; everything else is translated without it.
 
 If something doesn't work, open **Diagnostics**, press **Copy report**, and send it to the translation's author.

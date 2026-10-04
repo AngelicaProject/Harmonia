@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
+using Harmonia.Game;
 using Harmonia.Localization;
 
 namespace Harmonia.UI;
@@ -72,6 +73,34 @@ internal sealed partial class MainWindow
                     }
                 }
             }
+        }
+
+        if (info.Dictionary is { } dictionary)
+            DrawDictionarySettings(dictionary);
+    }
+
+    private void DrawDictionarySettings(NameDictionary dictionary)
+    {
+        using var card = Ui.BeginCard("dictionary");
+        ImGui.TextDisabled(Lang.T("settings.section_dictionary"));
+        Ui.Gap(2);
+        Ui.Hint(Lang.T("settings.dictionary_hint", NameLookup.FindCommand, Ui.LanguageName(GameLanguages.Tag(dictionary.ClientLanguage))));
+        Ui.Gap(4);
+        foreach (var language in GameLanguages.All)
+        {
+            if (language == dictionary.ClientLanguage)
+                continue;
+
+            var tag = GameLanguages.Tag(language);
+            var shown = configuration.DictionaryLanguages.Contains(tag);
+            if (!ImGui.Checkbox(Ui.LanguageName(tag) + "##dictionary_" + tag, ref shown))
+                continue;
+
+            configuration.DictionaryLanguages.Remove(tag);
+            if (shown)
+                configuration.DictionaryLanguages.Add(tag);
+            save();
+            dictionary.Invalidate();
         }
     }
 
