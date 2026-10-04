@@ -43,6 +43,7 @@ public sealed unsafe class HpkFile : IDisposable
     private long stringsOffset;
     private long stringsLength;
     private (long Offset, long Length)? fontsSection;
+    private (long Offset, long Length)? fontReplacementsSection;
     private long namesOffset;
     private long namesLength;
     private int sheetCount;
@@ -71,6 +72,8 @@ public sealed unsafe class HpkFile : IDisposable
         BindSections(sections);
         if (sections.TryGetValue(HpkFormat.KindFonts, out var fonts))
             fontsSection = fonts;
+        if (sections.TryGetValue(HpkFormat.KindFontReplacements, out var replacements))
+            fontReplacementsSection = replacements;
         sheetNames = new string[sheetCount];
         layouts = new HpkLayoutColumn[]?[sheetCount];
         ReadSheets();
@@ -82,6 +85,8 @@ public sealed unsafe class HpkFile : IDisposable
             ValidateRecords();
             if (HasFonts)
                 ReadFonts();
+            if (HasFontReplacements)
+                ReadFontReplacements();
         }
     }
 
@@ -98,10 +103,19 @@ public sealed unsafe class HpkFile : IDisposable
     // The pack carries a FONTS section (format minor 1).
     public bool HasFonts => fontsSection is not null;
 
+    // The pack carries a font-replacements section (format minor 2).
+    public bool HasFontReplacements => fontReplacementsSection is not null;
+
     // Parses and validates the FONTS section; null when the pack has none.
-    public HpkFonts? ReadFonts()
+    public HpkFonts? ReadFonts() => ReadFontSection(fontsSection);
+
+    // Parses and validates the font-replacements section, which has the
+    // FONTS layout; null when the pack has none.
+    public HpkFonts? ReadFontReplacements() => ReadFontSection(fontReplacementsSection);
+
+    private HpkFonts? ReadFontSection((long Offset, long Length)? found)
     {
-        if (fontsSection is not { } section)
+        if (found is not { } section)
             return null;
         if (section.Length > int.MaxValue)
             throw new HpkFormatException("FONTS section is too large.");
@@ -310,7 +324,7 @@ public sealed unsafe class HpkFile : IDisposable
                 throw new HpkFormatException("Non-zero padding between pack sections.");
 
             cursor = (long)(offset + length);
-            if (kind == HpkFormat.KindFonts)
+            if (kind is HpkFormat.KindFonts or HpkFormat.KindFontReplacements)
             {
                 if (!result.TryAdd(kind, ((long)offset, (long)length)))
                     throw new HpkFormatException("Duplicate pack section " + kind + ".");

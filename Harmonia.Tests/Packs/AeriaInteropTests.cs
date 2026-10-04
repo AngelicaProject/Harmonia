@@ -83,5 +83,23 @@ public sealed unsafe class AeriaInteropTests
         using var plain = HpkFile.Open(FixturePath, HpkOpenMode.Full);
         Assert.False(plain.HasFonts);
         Assert.Null(plain.ReadFonts());
+        Assert.False(file.HasFontReplacements);
+        Assert.Null(file.ReadFontReplacements());
+    }
+
+    [Fact]
+    public void Aeria_replacements_pack_passes_full_verification()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "TestData", "harmonia-interop-replacements.hpk");
+        using var file = HpkFile.Open(path, HpkOpenMode.Full);
+        Assert.True(file.HasFonts);
+        Assert.True(file.HasFontReplacements);
+        Assert.Equal(["Jupiter_16", "TrumpGothic_184"], file.ReadFonts()!.Targets.Select(static t => t.Name));
+        var replacements = file.ReadFontReplacements()!;
+        var axis = Assert.Single(replacements.Targets);
+        Assert.Equal("AXIS_14", axis.Name);
+        Assert.Equal((19, 15), (axis.LineHeight, axis.Ascent));
+        Assert.Equal(['Б', 'Ж'], axis.Glyphs.Select(static g => (char)g.Codepoint));
+        Assert.Equal("Test Sans", Assert.Single(replacements.Sources).Family);
     }
 }

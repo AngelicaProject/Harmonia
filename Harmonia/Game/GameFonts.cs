@@ -11,7 +11,7 @@ namespace Harmonia.Game;
 
 public enum GameFontsState
 {
-    // The active pack has no FONTS section.
+    // The active pack has neither a FONTS nor a font-replacements section.
     NotInPack,
 
     // Patched files are ready; Penumbra is not available to serve them.
@@ -27,7 +27,8 @@ public enum GameFontsState
     Failed,
 }
 
-// Adds the active pack's FONTS glyphs to the game's own fonts. The patched
+// Adds the active pack's FONTS glyphs to the game's own fonts and applies
+// its font replacements (format minor 2). The patched
 // .fdt and .tex files are built once per (game version, pack) from the game's
 // current files and served through a Penumbra temporary mod. Penumbra applies
 // a temporary mod added outside a framework tick only on the next tick, after
@@ -78,7 +79,7 @@ public sealed unsafe class GameFonts : IDisposable
         this.scanner = scanner;
         this.log = log;
         var cache = new FontCache(cacheRoot);
-        if (!pack.HasFonts)
+        if (!pack.HasFonts && !pack.HasFontReplacements)
         {
             State = GameFontsState.NotInPack;
             cache.RemoveOthers(null);
@@ -87,14 +88,17 @@ public sealed unsafe class GameFonts : IDisposable
 
         try
         {
-            var fonts = pack.ReadFonts()!;
-            Sources = fonts.Sources;
+            var fonts = pack.ReadFonts();
+            var replacements = pack.ReadFontReplacements();
+            Sources = [.. new[] { fonts, replacements }
+                .SelectMany(static section => section?.Sources ?? [])
+                .DistinctBy(static source => (source.Family, source.Sha256))];
             var version = data.GameData.Repositories.TryGetValue("ffxiv", out var repository) ? repository.Version : null;
             var key = FontCache.Key(version ?? "unknown", pack.PackHash);
             entry = cache.TryLoad(key);
             if (entry is null)
             {
-                var result = FontPatcher.Patch(fonts, path => data.FileExists(path) ? data.GetFile(path)?.Data : null);
+                var result = FontPatcher.Patch(fonts, replacements, path => data.FileExists(path) ? data.GetFile(path)?.Data : null);
                 entry = cache.Store(key, result);
                 log.Info($"Prepared {result.Files.Count} font files for pack glyphs.");
             }

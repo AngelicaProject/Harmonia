@@ -26,6 +26,10 @@ public static class HpkFormat
     public const uint FirstOptionalKind = 0x10000;
     public const uint KindFonts = 0x10000;
 
+    // Format minor 2: glyphs that replace the game font's own, in the FONTS
+    // layout. Readers of minor 1 skip it like any optional kind.
+    public const uint KindFontReplacements = 0x10001;
+
 
     public const int MaxStringLength = 65535;
     public const int MaxManifestBytes = 1 << 20;

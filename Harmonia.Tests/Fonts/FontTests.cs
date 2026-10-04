@@ -40,6 +40,17 @@ public sealed class FontTests
     }
 
     [Fact]
+    public void Fdt_with_a_repeated_record_like_the_game_axis_round_trips()
+    {
+        var bytes = FontTestData.Fdt(17, 13, [(0x20, 1), (0x20, 1), (CyrillicA, 0)], []);
+        var fdt = FdtFile.Parse(bytes);
+        Assert.Equal(bytes, fdt.Write());
+        fdt.Replace(fdt.Glyphs[2] with { TexIndex = 10 });
+        fdt.Add(new FdtGlyph(CyrillicBe, 0, 10, 0, 0, 1, 1, 0, 0));
+        Assert.Equal([0x20u, 0x20u, CyrillicA, CyrillicBe], FdtFile.Parse(fdt.Write()).Glyphs.Select(static g => g.Utf8));
+    }
+
+    [Fact]
     public void Malformed_fdt_is_rejected()
     {
         var valid = FontTestData.Fdt(26, 19, [(LatinA, 4), (CyrillicBe, 4)], [(LatinA, LatinA, -1)]);
@@ -153,6 +164,45 @@ public sealed class FontTests
         }
 
         Assert.Equal(8, after.Get(2, a.X, a.Y));
+    }
+
+    [Fact]
+    public void Patcher_replaces_glyphs_the_font_has_keeping_their_codes_and_native_pixels()
+    {
+        var game = Game();
+        var axis = new TestTarget("AXIS", "12", 17, 13,
+        [
+            new TestGlyph('А', 7, 9, 4, 8),
+            new TestGlyph('Б', 7, 9, 4, 8),
+            new TestGlyph('Г', 6, 9, 4, 7), // the font lacks it
+        ]);
+        var result = FontPatcher.Patch(FontTestData.Fonts(Jupiter), FontTestData.Fonts(axis), path => game.GetValueOrDefault(path));
+
+        Assert.Contains(new FontTargetReport("main", "Jupiter_16", FontTargetStatus.Applied, 3), result.Reports);
+        Assert.Contains(new FontTargetReport("main", "AXIS_12", FontTargetStatus.Applied, 3, Replaced: true), result.Reports);
+        Assert.Contains(new FontTargetReport("lobby", "AXIS_12", FontTargetStatus.Applied, 3, Replaced: true), result.Reports);
+
+        var original = FdtFile.Parse(game["common/font/AXIS_12.fdt"]);
+        var patched = FdtFile.Parse(result.Files["common/font/AXIS_12.fdt"]);
+        Assert.Equal(original.Glyphs.Count + 1, patched.Glyphs.Count);
+        Assert.Equal(original.Glyphs.Single(static g => g.Utf8 == Yo), patched.Glyphs.Single(static g => g.Utf8 == Yo));
+        var before = original.Glyphs.Single(static g => g.Utf8 == CyrillicA);
+        var a = patched.Glyphs.Single(static g => g.Utf8 == CyrillicA);
+        Assert.Equal(before.ShiftJis, a.ShiftJis);
+        Assert.Contains(a.TexIndex, FontSet.Main.CandidatePages.Select(static page => (ushort)page));
+        Assert.Equal((7, 9, 1, 4), (a.Width, a.Height, a.NextOffsetX, a.OffsetY));
+
+        // The old bitmap is still there; only the free channel changed.
+        var texture = FontTexture.Parse(game["common/font/font3.tex"]);
+        var after = FontTexture.Parse(result.Files["common/font/font3.tex"]);
+        for (var y = 0; y < after.Height; y++)
+        {
+            for (var x = 0; x < after.Width; x++)
+            {
+                for (var channel = 0; channel < 2; channel++)
+                    Assert.Equal(texture.Get(channel, x, y), after.Get(channel, x, y));
+            }
+        }
     }
 
     [Fact]

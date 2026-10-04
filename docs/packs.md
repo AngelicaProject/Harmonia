@@ -119,9 +119,12 @@ unaffected; the Diagnostics report shows whether they are on.
 
 ## Font glyphs
 
-A pack of format minor 1 may have a `FONTS` section (Aeria
-`docs/formats/pack-v1.md`). When the active pack has one, `GameFonts` at
-startup:
+A pack of format minor 1 may have a `FONTS` section, and one of minor 2 a
+font-replacements section (kind `0x10001`, the same layout; Aeria
+`docs/formats/pack-v1.md`). Harmonia 0.1.7 and earlier skip the replacements
+like any optional section, so such a pack still loads there with its
+translations and `FONTS` glyphs. When the active pack has either section,
+`GameFonts` at startup:
 
 1. reads the game's own `common/font/<font>_<size>.fdt` and `_lobby.fdt`
    files and their atlas textures through `IDataManager`;
@@ -129,16 +132,20 @@ startup:
    25, 26, 27) and the title-screen set (`font_lobbyN.tex`, candidate page 23).
    A candidate page is used only when its channel is entirely empty in the
    running game's texture;
-3. per target: skips it when the `.fdt` is missing or its `fthd` line height or
-   ascent differ from the section; skips glyphs the font already has; packs
-   the rest with `AtlasPacker` (shelves, 1 px gap, taller glyphs first) into
-   the free pages, all or nothing per target, and reports `NoRoom` otherwise;
+3. per target, `FONTS` targets first: skips it when the `.fdt` is missing or
+   its `fthd` line height or ascent differ from the section; for `FONTS`
+   skips glyphs the font already has, for replacements takes every glyph;
+   packs them with `AtlasPacker` (shelves, 1 px gap, taller glyphs first)
+   into the free pages, all or nothing per target, and reports `NoRoom`
+   otherwise. A table both sections touch is read and written once;
 4. writes coverage as `round(value × 15 / 255)` into the page's channel
    (channels 0–3 are bits 8, 4, 0, 12 of each 16-bit `0x1440` pixel), and
    inserts `.fdt` records in UTF-8 order: `texIndex` = page, `nextOffsetX` =
    advance − width, `offsetY` from the section, and the Shift-JIS code the
-   game's own `AXIS_12.fdt` has for the character (0 when it has none).
-   Existing records, the kerning table, and every other channel stay as read;
+   game's own `AXIS_12.fdt` has for the character (0 when it has none). A
+   replacement glyph the font has overwrites that record instead and keeps
+   its Shift-JIS code; the old bitmap stays in its page, unused. Other
+   records, the kerning table, and every other channel stay as read;
 5. stores the changed files in `<configuration dir>/font-cache/<game version>-<packHash>/`
    with `entry.json` written last; later starts reuse them, and other cache
    keys are deleted;

@@ -91,7 +91,9 @@ public sealed class FdtFile
                 at[13],
                 (sbyte)at[14],
                 (sbyte)at[15]);
-            if (list.Count > 0 && list[^1].Utf8 >= glyph.Utf8)
+            // The game's AXIS tables hold the space twice; equal neighbours
+            // are kept and written back as read.
+            if (list.Count > 0 && list[^1].Utf8 > glyph.Utf8)
                 throw new FormatException("Glyph records are not sorted.");
             list.Add(glyph);
         }
@@ -129,6 +131,16 @@ public sealed class FdtFile
         if (index >= 0)
             throw new InvalidOperationException($"The font already has glyph 0x{glyph.Utf8:X}.");
         glyphs.Insert(~index, glyph);
+    }
+
+    // Replaces the record of a glyph the font has. The pack's replacement
+    // glyphs use it; the old bitmap stays in the atlas, unused.
+    public void Replace(FdtGlyph glyph)
+    {
+        var index = Find(glyph.Utf8);
+        if (index < 0)
+            throw new InvalidOperationException($"The font has no glyph 0x{glyph.Utf8:X}.");
+        glyphs[index] = glyph;
     }
 
     public byte[] Write()

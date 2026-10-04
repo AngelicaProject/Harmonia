@@ -134,7 +134,10 @@ internal sealed partial class MainWindow
             _ => Lang.T("info.fonts_failed", fonts.Error ?? "?"),
         });
 
-        var skipped = fonts.Reports.Where(static r => r.Status is FontTargetStatus.MetricsChanged or FontTargetStatus.NoRoom or FontTargetStatus.MissingFont).ToList();
+        // The title screen has no copy of some sizes (AXIS_96), so a missing
+        // lobby table is expected.
+        var skipped = fonts.Reports.Where(static r => r.Status is FontTargetStatus.MetricsChanged or FontTargetStatus.NoRoom ||
+            (r.Status == FontTargetStatus.MissingFont && r.Set != FontSet.Lobby.Name)).ToList();
         if (skipped.Count > 0)
             Ui.IconText(FontAwesomeIcon.ExclamationTriangle, Ui.Warn, Lang.T("info.fonts_skipped", string.Join(", ", skipped.Select(static r => $"{r.Target} ({r.Set})"))));
         if (fonts.Error is { } error && fonts.State != GameFontsState.Failed)
@@ -209,7 +212,7 @@ internal sealed partial class MainWindow
         {
             text.AppendLine(CultureInfo.InvariantCulture, $"Fonts: {fonts.State}{(fonts.Error is null ? string.Empty : ", " + fonts.Error)}");
             foreach (var report in fonts.Reports)
-                text.AppendLine(CultureInfo.InvariantCulture, $"  {report.Set} {report.Target}: {report.Status} {report.Glyphs}");
+                text.AppendLine(CultureInfo.InvariantCulture, $"  {report.Set} {report.Target}: {report.Status} {report.Glyphs}{(report.Replaced ? " replaced" : string.Empty)}");
         }
 
         if (info.Hooks is { } hooks)
