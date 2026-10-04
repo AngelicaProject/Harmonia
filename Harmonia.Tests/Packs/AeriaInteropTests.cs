@@ -36,6 +36,19 @@ public sealed unsafe class AeriaInteropTests
     }
 
     [Fact]
+    public void Aeria_signature_passes_the_managed_verifier()
+    {
+        // The path Wine takes, where the platform ECDsa cannot import the key.
+        using var file = HpkFile.Open(FixturePath, HpkOpenMode.Metadata);
+        var signature = file.Signature!;
+        byte[] message = [.. HpkFormat.SignatureDomain, .. file.PackHash];
+
+        Assert.True(P256.Verify(signature.PublicKey, message, signature.Signature));
+        message[^1] ^= 0x01;
+        Assert.False(P256.Verify(signature.PublicKey, message, signature.Signature));
+    }
+
+    [Fact]
     public void Aeria_pack_serves_guarded_translations()
     {
         using var runtime = new TranslationRuntime(HpkFile.Open(FixturePath, HpkOpenMode.Full), "interop", FixturePath);

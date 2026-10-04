@@ -13,6 +13,8 @@ public static class FeedErrors
     {
         HttpRequestException { StatusCode: HttpStatusCode.NotFound or HttpStatusCode.Gone } => Lang.T("link.not_found"),
         HttpRequestException { StatusCode: not null } http => Lang.T("link.server_error", (int)http.StatusCode.Value),
+        // A wrong clock, or Wine without gnutls (its Schannel needs it).
+        HttpRequestException { HttpRequestError: HttpRequestError.SecureConnectionError } => Lang.T("link.tls"),
         HttpRequestException => Lang.T("link.unreachable"),
         TimeoutException or TaskCanceledException => Lang.T("link.timeout"),
         FormatException => Lang.T("link.not_feed"),

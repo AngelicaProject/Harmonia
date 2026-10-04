@@ -17,7 +17,27 @@ internal sealed partial class MainWindow
 {
     private const float DiagnosticsLabelWidth = 240;
 
+    private const string ReportFileName = "harmonia-report.txt";
+
     private DateTime copiedAt;
+    private string? reportPath;
+    private string? reportError;
+
+    private void SaveReport()
+    {
+        try
+        {
+            var path = Path.Combine(packs.ResourcesDir, ReportFileName);
+            File.WriteAllText(path, DiagnosticsText());
+            reportPath = path;
+            reportError = null;
+        }
+        catch (Exception ex)
+        {
+            reportPath = null;
+            reportError = ex.Message;
+        }
+    }
 
     private void DrawDiagnostics()
     {
@@ -31,11 +51,31 @@ internal sealed partial class MainWindow
             copiedAt = DateTime.UtcNow;
         }
 
+        // Under Wine the clipboard often does not reach the host system, so
+        // the report can also be saved as a file.
+        ImGui.SameLine();
+        if (Ui.Button(FontAwesomeIcon.Save, Lang.T("info.save")))
+            SaveReport();
+
+        if (reportPath is not null)
+        {
+            Ui.Gap(2);
+            Ui.Hint(Lang.T("info.saved", reportPath));
+            if (Ui.LinkButton(FontAwesomeIcon.FolderOpen, Lang.T("details.open_folder")))
+                Ui.OpenFolder(Path.GetDirectoryName(reportPath)!);
+        }
+        else if (reportError is not null)
+        {
+            Ui.Gap(2);
+            Ui.Hint(Lang.T("info.save_failed", reportError));
+        }
+
         Ui.Gap(8);
 
         using (Ui.BeginCard("environment"))
         {
             Row(Lang.T("info.plugin_version"), info.PluginVersion);
+            Row(Lang.T("info.platform"), Platform.Describe());
             Row(Lang.T("info.game_version"), packs.CurrentGameVersion ?? Lang.T("common.unknown"));
             Row(Lang.T("info.client_language"), packs.ClientLanguage is { } language
                 ? $"{Ui.LanguageName(language)} ({language})"
@@ -158,6 +198,7 @@ internal sealed partial class MainWindow
     {
         var text = new StringBuilder();
         text.AppendLine(CultureInfo.InvariantCulture, $"Harmonia {info.PluginVersion}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"Platform: {Platform.Describe()}");
         text.AppendLine(CultureInfo.InvariantCulture, $"Game version: {packs.CurrentGameVersion ?? "?"}, client language: {packs.ClientLanguage ?? "?"}");
         text.AppendLine(CultureInfo.InvariantCulture, $"Selected pack: {configuration.ActivePackId}, at start: {info.SelectedAtStart}, loaded: {info.LoadedPackId ?? "-"}{(info.Reloaded ? ", reloaded" : string.Empty)}");
         if (info.PackError is not null)

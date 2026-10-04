@@ -88,6 +88,8 @@ public sealed class HpkSignature
     {
         if (publicKey[0] != 0x04)
             throw new HpkFormatException("Signing key is not an uncompressed P-256 point.");
+        if (!P256.IsValidPublicKey(publicKey))
+            throw new HpkFormatException("Signing key is not a valid P-256 key.");
 
         var message = new byte[domain.Length + payload.Length];
         domain.CopyTo(message);
@@ -104,7 +106,9 @@ public sealed class HpkSignature
         }
         catch (CryptographicException)
         {
-            throw new HpkFormatException("Signing key is not a valid P-256 key.");
+            // The key is valid (checked above), so the platform cannot do ECDSA:
+            // Wine's CNG rejects the import.
+            return P256.Verify(publicKey, message, signature);
         }
     }
 }
