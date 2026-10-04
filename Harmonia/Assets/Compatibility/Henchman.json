@@ -1,0 +1,19 @@
+{
+  "plugin": "Henchman",
+  "name": "Henchman",
+  "sheets": ["World"],
+  "cells": [{"sheet": "ClassJob", "columns": [0], "rows": [1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 26]}],
+  "rows": {
+    "Addon": [2, 91, 111, 115, 622, 917, 2386, 2389, 2391, 3392, 102223],
+    "Lobby": [32, 621, 1800, 2044, 2176],
+    "Error": [13206],
+    "EObjName": [2000072],
+    "GilShop": [262715, 262720, 262730],
+    "Warp": [131119, 131120, 131134],
+    "custom/000/CmnDefRetainerDesk_00009": [6, 68, 69, 70, 71, 72, 73, 76, 83, 84, 134],
+    "custom/000/CmnDefRetainerCall_00010": [196, 198, 200, 202, 208],
+    "custom/000/ComDefGrandCompanyOfficer_00073": [68],
+    "custom/002/ComDefMobHuntBoard_00202": [1, 2, 5, 6, 7, 8, 12, 13, 14, 15, 18, 19, 20, 21, 24, 25, 26, 27, 30, 31, 32, 33],
+    "custom/006/CtsIkdEntrance_00663": [4, 10]
+  }
+}

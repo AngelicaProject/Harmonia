@@ -18,7 +18,7 @@ public sealed class CompatibilityProfileTests
         var profiles = CompatibilityProfile.All;
 
         Assert.Equal(
-            ["Artisan", "AutoRetainer", "Lifestream", "PandorasBox", "Questionable", "SimpleTweaksPlugin", "TextAdvance", "YesAlready"],
+            ["Artisan", "AutoRetainer", "Henchman", "Lifestream", "PandorasBox", "Questionable", "SimpleTweaksPlugin", "TextAdvance", "YesAlready"],
             profiles.Select(static p => p.Plugin).Order(StringComparer.Ordinal));
         Assert.All(profiles, static p => Assert.Contains(p.Parts, static part =>
             part.Rows.Count + part.Sheets.Count + part.Cells.Count + part.Sources.Count > 0));
