@@ -51,8 +51,8 @@ internal sealed partial class MainWindow
             copiedAt = DateTime.UtcNow;
         }
 
-        // Under Wine the clipboard often does not reach the host system, so
-        // the report can also be saved as a file.
+        // The game's clipboard is not always shared with the rest of the
+        // system, so the report can also be saved as a file.
         ImGui.SameLine();
         if (Ui.Button(FontAwesomeIcon.Save, Lang.T("info.save")))
             SaveReport();

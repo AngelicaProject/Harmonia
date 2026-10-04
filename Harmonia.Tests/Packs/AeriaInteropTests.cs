@@ -38,7 +38,7 @@ public sealed unsafe class AeriaInteropTests
     [Fact]
     public void Aeria_signature_passes_the_managed_verifier()
     {
-        // The path Wine takes, where the platform ECDsa cannot import the key.
+        // The fallback used when the platform ECDsa cannot import the key.
         using var file = HpkFile.Open(FixturePath, HpkOpenMode.Metadata);
         var signature = file.Signature!;
         byte[] message = [.. HpkFormat.SignatureDomain, .. file.PackHash];

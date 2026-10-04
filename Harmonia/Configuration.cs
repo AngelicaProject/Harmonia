@@ -14,9 +14,6 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>UI language code ("en", "ru").</summary>
     public string Language { get; set; } = "en";
 
-    /// <summary>Game process id of the session in which the plugin last loaded.</summary>
-    public int SessionPid { get; set; }
-
     /// <summary>
     /// Installed translation applied at the next game start, by its folder name
     /// in the pack store; empty means none.

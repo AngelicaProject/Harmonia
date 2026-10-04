@@ -106,8 +106,8 @@ public sealed class HpkSignature
         }
         catch (CryptographicException)
         {
-            // The key is valid (checked above), so the platform cannot do ECDSA:
-            // Wine's CNG rejects the import.
+            // The key is on the curve (checked above), so the failure is the
+            // platform's crypto provider, not the key.
             return P256.Verify(publicKey, message, signature);
         }
     }

@@ -78,7 +78,7 @@ public sealed class P256Tests
             zero.AsSpan(offset, 32).Clear();
             Assert.False(P256.Verify(publicKey, message, zero));
 
-            // r + n and s + n would verify if the range were not checked; n itself is out of range.
+            // n is the smallest value outside [1, n - 1].
             var order = signature.ToArray();
             Write32(order.AsSpan(offset, 32), N);
             Assert.False(P256.Verify(publicKey, message, order));

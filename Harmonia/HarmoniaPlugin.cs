@@ -23,6 +23,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private const string CommandName = "/harmonia";
     private const string LocalizationDirName = "Localization";
     private const string FontCacheDirName = "font-cache";
+    private const string SessionMarker = "HarmoniaEngine.Session";
 
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly IFramework framework;
@@ -70,7 +71,10 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             Save();
         }
 
-        var reloaded = configuration.SessionPid == Environment.ProcessId;
+        // Dalamud reloads a plugin inside the running game process, so data on
+        // the AppDomain outlives the plugin but not the game. A saved process id
+        // is not enough: ids are reused, and a new game can get the old one.
+        var reloaded = AppDomain.CurrentDomain.GetData(SessionMarker) is not null;
         if (reloaded)
         {
             session.IsRestartRequired = true;
@@ -78,8 +82,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         }
         else
         {
-            configuration.SessionPid = Environment.ProcessId;
-            Save();
+            AppDomain.CurrentDomain.SetData(SessionMarker, true);
         }
 
         // Packs and the font cache live in the configuration directory:

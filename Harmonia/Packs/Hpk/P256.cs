@@ -3,10 +3,10 @@ using System.Security.Cryptography;
 
 namespace Harmonia.Packs.Hpk;
 
-// ECDSA P-256 / SHA-256 verification in managed code. Wine's CNG cannot import
-// the public keys .NET hands it, so under Wine and Proton the system ECDsa
-// throws on every pack. Verification only touches public data, so it does not
-// need to run in constant time.
+// ECDSA P-256 / SHA-256 verification in managed code, for platforms whose
+// crypto provider cannot import an ECC public key: there the system ECDsa
+// throws for every key, valid or not. Verification only touches public data,
+// so it does not need to run in constant time.
 public static class P256
 {
     private static readonly BigInteger P = Parse("FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF");
