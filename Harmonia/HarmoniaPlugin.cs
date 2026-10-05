@@ -213,7 +213,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                 [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup),
             pluginInterface.UiBuilder,
             textures,
-            () => RelevantProfiles(pluginInterface, pluginConfigs));
+            () => RelevantProfiles(pluginInterface, pluginConfigs),
+            new SheetPreviews(dataManager, log));
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
             IsOpen = reloaded,

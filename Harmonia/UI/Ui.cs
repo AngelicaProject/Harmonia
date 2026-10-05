@@ -103,6 +103,24 @@ internal static class Ui
         return clicked;
     }
 
+    // A checkbox that can also show "some of it" with a filled square.
+    // Returns true when clicked; the caller decides the new value.
+    public static bool Checkbox(string label, bool on, bool mixed)
+    {
+        var value = on && !mixed;
+        var clicked = ImGui.Checkbox(label, ref value);
+        if (mixed)
+        {
+            var min = ImGui.GetItemRectMin();
+            var size = ImGui.GetFrameHeight();
+            var pad = MathF.Max(1, MathF.Floor(size / 3.6f));
+            ImGui.GetWindowDrawList().AddRectFilled(
+                Snap(min + new Vector2(pad)), Snap(min + new Vector2(size - pad)), ImGui.GetColorU32(ImGuiCol.CheckMark), ImGui.GetStyle().FrameRounding);
+        }
+
+        return clicked;
+    }
+
     public static bool Button(FontAwesomeIcon icon, string text) => ImGuiComponents.IconButtonWithText(icon, text);
 
     public static float ButtonWidth(FontAwesomeIcon icon, string text) => ImGuiComponents.GetIconButtonWithTextWidth(icon, text);

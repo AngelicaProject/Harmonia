@@ -27,6 +27,13 @@ public sealed class Configuration : IPluginConfiguration
     public List<string> UntranslatedSheets { get; set; } = [];
 
     /// <summary>
+    /// The player's changes to the sheet groups of the Coverage page: built-in
+    /// groups changed or removed, and the player's own groups. Groups only
+    /// choose sheets; what is kept is UntranslatedSheets.
+    /// </summary>
+    public List<Packs.SavedSheetGroup> SheetGroupChanges { get; set; } = [];
+
+    /// <summary>
     /// Plugins (InternalName) whose compatibility profile the player turned
     /// off: the text they look for is translated too. Profiles of installed
     /// plugins are on otherwise. Applies at the next game start.

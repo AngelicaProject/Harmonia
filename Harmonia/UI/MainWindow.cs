@@ -57,6 +57,7 @@ internal sealed partial class MainWindow : Window, IDisposable
     private readonly IFontHandle headingFont;
     private readonly IFontHandle largeIconFont;
     private readonly ITextureProvider textures;
+    private readonly SheetPreviews previews;
 
     private Page page = Page.Translations;
 
@@ -71,7 +72,8 @@ internal sealed partial class MainWindow : Window, IDisposable
         SessionInfo info,
         IUiBuilder uiBuilder,
         ITextureProvider textures,
-        Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles)
+        Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles,
+        SheetPreviews previews)
         : base("Harmonia###harmonia_main")
     {
         this.configuration = configuration;
@@ -84,6 +86,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         this.info = info;
         this.relevantProfiles = relevantProfiles;
         this.textures = textures;
+        this.previews = previews;
         headingFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(MathF.Round(UiBuilder.DefaultFontSizePx * 1.25f))));
         largeIconFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = MathF.Round(UiBuilder.DefaultFontSizePx * 1.6f) })));
 
@@ -102,6 +105,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         pendingImport = null;
         dictionaryCancel?.Cancel();
         dictionaryCancel?.Dispose();
+        previews.Dispose();
         headingFont.Dispose();
         largeIconFont.Dispose();
     }
