@@ -16,8 +16,9 @@ namespace Harmonia.Compatibility;
 //   name      the name shown to the player;
 //   sheets    sheets kept whole;
 //   rows      sheet name -> row ids (every subrow of a row is kept);
-//   cells     [{ sheet, columns, rows? }]: only these columns (the game's
-//             column indexes) of the rows, or of every row without "rows";
+//   cells     [{ sheet, columns, rows? | source? }]: only these columns (the
+//             game's column indexes) of the rows, of the source's rows in
+//             that sheet, or of every row without either;
 //   sources   rows found in the game data at startup (CompatibilitySources);
 //   optional  [{ when, require, sheets, rows, cells, sources }]: kept only
 //             while one of the "when" conditions on the plugin's own
@@ -28,7 +29,7 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
     private const string ResourcePrefix = "Compatibility.";
 
     // Rows that profiles name but that only the game data can list.
-    public static readonly IReadOnlyList<string> KnownSources = ["aethernet-place-names"];
+    public static readonly IReadOnlyList<string> KnownSources = ["aethernet-place-names", "triple-triad-npcs"];
 
     private static readonly Lazy<(IReadOnlyList<CompatibilityProfile> Profiles, IReadOnlyList<string> Errors)> BuiltIn =
         new(static () => Load(ReadResources()));
@@ -87,7 +88,12 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
             foreach (var (sheet, rows) in part.Rows)
                 keep.AddRows(sheet, rows);
             foreach (var cells in part.Cells)
-                keep.AddColumns(cells.Sheet, cells.Columns, cells.Rows);
+            {
+                var rows = cells.Source is null
+                    ? cells.Rows
+                    : sourceRows(cells.Source).Where(r => string.Equals(r.Sheet, cells.Sheet, StringComparison.Ordinal)).Select(static r => r.Row).ToList();
+                keep.AddColumns(cells.Sheet, cells.Columns, rows);
+            }
             foreach (var source in part.Sources)
             {
                 foreach (var group in sourceRows(source).GroupBy(static r => r.Sheet, StringComparer.Ordinal))
@@ -109,14 +115,17 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
         PartFile file, IReadOnlyList<CompatibilityCondition> when, IReadOnlyList<CompatibilityCondition> require)
     {
         var sources = file.Sources ?? [];
-        var unknown = sources.FirstOrDefault(s => !KnownSources.Contains(s, StringComparer.Ordinal));
+        var unknown = sources.Concat((file.Cells ?? []).Select(static c => c.Source).OfType<string>())
+            .FirstOrDefault(s => !KnownSources.Contains(s, StringComparer.Ordinal));
         if (unknown is not null)
             throw new FormatException($"Unknown source \"{unknown}\".");
 
         var cells = (file.Cells ?? []).Select(static c =>
             string.IsNullOrWhiteSpace(c.Sheet) || c.Columns is not { Count: > 0 }
                 ? throw new FormatException("Cells need a sheet and columns.")
-                : new CompatibilityCells(c.Sheet, c.Columns, c.Rows)).ToList();
+                : c.Rows is not null && c.Source is not null
+                    ? throw new FormatException("Cells take rows or a source, not both.")
+                    : new CompatibilityCells(c.Sheet, c.Columns, c.Rows, c.Source)).ToList();
 
         return new CompatibilityPart(
             when,
@@ -196,6 +205,7 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
         public string? Sheet { get; set; }
         public List<uint>? Columns { get; set; }
         public List<uint>? Rows { get; set; }
+        public string? Source { get; set; }
     }
 
     private sealed class ConditionFile
@@ -229,5 +239,6 @@ public sealed record CompatibilityPart(
     }
 }
 
-// Rows null: every row of the sheet.
-public sealed record CompatibilityCells(string Sheet, IReadOnlyList<uint> Columns, IReadOnlyList<uint>? Rows);
+// Rows and Source null: every row of the sheet. Source: the rows the source
+// lists in this sheet.
+public sealed record CompatibilityCells(string Sheet, IReadOnlyList<uint> Columns, IReadOnlyList<uint>? Rows, string? Source = null);

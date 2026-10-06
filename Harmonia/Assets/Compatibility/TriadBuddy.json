@@ -1,0 +1,8 @@
+{
+  "plugin": "TriadBuddy",
+  "name": "Triad Buddy",
+  "cells": [
+    {"sheet": "TripleTriadRule", "columns": [0]},
+    {"sheet": "ENpcResident", "columns": [0], "source": "triple-triad-npcs"}
+  ]
+}

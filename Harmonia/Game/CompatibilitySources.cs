@@ -14,6 +14,7 @@ internal sealed class CompatibilitySources(IDataManager data, IHarmoniaLog log)
             return source switch
             {
                 "aethernet-place-names" => AethernetPlaceNames(),
+                "triple-triad-npcs" => TripleTriadNpcs(),
                 _ => [],
             };
         }
@@ -45,6 +46,21 @@ internal sealed class CompatibilitySources(IDataManager data, IHarmoniaLog log)
         {
             if (aetheryte.Name.RowId != 0)
                 rows.Add((nameof(PlaceName), aetheryte.Name.RowId));
+        }
+
+        return rows;
+    }
+
+    // Names of the Triple Triad opponents: the ENpcResident rows of every
+    // ENpcBase whose event data names a TripleTriad row.
+    private List<(string, uint)> TripleTriadNpcs()
+    {
+        var triad = data.GetExcelSheet<TripleTriad>().Select(static t => t.RowId).Where(static id => id != 0).ToHashSet();
+        var rows = new List<(string, uint)>();
+        foreach (var npc in data.GetExcelSheet<ENpcBase>())
+        {
+            if (npc.ENpcData.Any(d => triad.Contains(d.RowId)))
+                rows.Add((nameof(ENpcResident), npc.RowId));
         }
 
         return rows;

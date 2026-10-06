@@ -18,7 +18,7 @@ public sealed class CompatibilityProfileTests
         var profiles = CompatibilityProfile.All;
 
         Assert.Equal(
-            ["Artisan", "AutoRetainer", "Henchman", "Lifestream", "PandorasBox", "Questionable", "SimpleTweaksPlugin", "TextAdvance", "YesAlready"],
+            ["Artisan", "AutoRetainer", "Henchman", "Lifestream", "PandorasBox", "Questionable", "SimpleTweaksPlugin", "TextAdvance", "TriadBuddy", "YesAlready"],
             profiles.Select(static p => p.Plugin).Order(StringComparer.Ordinal));
         Assert.All(profiles, static p => Assert.Contains(p.Parts, static part =>
             part.Rows.Count + part.Sheets.Count + part.Cells.Count + part.Sources.Count > 0));
@@ -31,6 +31,8 @@ public sealed class CompatibilityProfileTests
     {
         Assert.Throws<FormatException>(() => CompatibilityProfile.Parse("""{"plugin":"X","sources":["nope"]}"""));
         Assert.Throws<FormatException>(() => CompatibilityProfile.Parse("""{"rows":{"Addon":[1]}}"""));
+        Assert.Throws<FormatException>(() => CompatibilityProfile.Parse("""{"plugin":"X","cells":[{"sheet":"Addon","columns":[0],"source":"nope"}]}"""));
+        Assert.Throws<FormatException>(() => CompatibilityProfile.Parse("""{"plugin":"X","cells":[{"sheet":"Addon","columns":[0],"rows":[1],"source":"triple-triad-npcs"}]}"""));
         Assert.Equal("X", CompatibilityProfile.Parse("""{"plugin":"X"}""").Name);
     }
 
@@ -97,6 +99,21 @@ public sealed class CompatibilityProfileTests
         Assert.Equal((CellDecision.Applied, "Мир"), RuntimeProbe.Lookup(narrow, addon, 1, 0, 1, "World"));
         Assert.Equal(CellDecision.Kept, RuntimeProbe.Lookup(narrow, addon, 7, 0, 1, "Hi").Decision);
         Assert.Equal(1, narrow.GetTotals().Kept);
+    }
+
+    [Fact]
+    public void Kept_columns_can_take_their_rows_from_a_source()
+    {
+        var profile = CompatibilityProfile.Parse("""{"plugin":"X","cells":[{"sheet":"Addon","columns":[2],"source":"triple-triad-npcs"}]}""");
+        var keep = CompatibilityProfile.Keep([profile], static _ => [("Addon", 7u), ("Other", 1u)]);
+        using var runtime = new TranslationRuntime(
+            HpkFile.FromBytes(HpkBuilder.WithDefaultSheet().Build(), HpkOpenMode.Full), "test", "test.hpk", null, keep);
+        var addon = runtime.BindSheet("Addon", false, AddonColumns);
+
+        Assert.Equal((CellDecision.Applied, "Мир"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 1, "World"));
+        Assert.Equal(CellDecision.Kept, RuntimeProbe.Lookup(runtime, addon, 7, 0, 1, "Hi").Decision);
+        Assert.Null(keep.CellsOf("Other"));
+        Assert.Equal(1, runtime.GetTotals().Kept);
     }
 
     [Fact]
