@@ -82,6 +82,74 @@
       "when": [
         {
           "config": "AutoRetainer/DefaultConfig.json",
+          "path": "$.AdditionalData.*.EnablePlanner",
+          "equals": true,
+          "default": false
+        }
+      ],
+      "cells": [
+        {
+          "sheet": "RetainerTaskRandom",
+          "columns": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "when": [
+        {
+          "config": "AutoRetainer/DefaultConfig.json",
+          "path": "$.DefaultIMSettings.IMDiscardList",
+          "default": false
+        },
+        {
+          "config": "AutoRetainer/DefaultConfig.json",
+          "path": "$.AdditionalIMSettings[*].IMDiscardList",
+          "default": false
+        }
+      ],
+      "rows": {
+        "Addon": [
+          110,
+          153
+        ]
+      }
+    },
+    {
+      "when": [
+        {
+          "config": "AutoRetainer/DefaultConfig.json",
+          "path": "$.DefaultIMSettings.IMEnableNpcSell",
+          "equals": true,
+          "default": false
+        },
+        {
+          "config": "AutoRetainer/DefaultConfig.json",
+          "path": "$.AdditionalIMSettings[*].IMEnableNpcSell",
+          "equals": true,
+          "default": false
+        }
+      ],
+      "cells": [
+        {
+          "sheet": "GilShop",
+          "columns": [
+            0
+          ]
+        },
+        {
+          "sheet": "TopicSelect",
+          "columns": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "when": [
+        {
+          "config": "AutoRetainer/DefaultConfig.json",
           "path": "$.OfflineData[*].EnabledSubs[0]",
           "default": false
         },
