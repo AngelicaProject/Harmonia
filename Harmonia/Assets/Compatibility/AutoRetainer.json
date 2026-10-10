@@ -1,6 +1,57 @@
 {
   "plugin": "AutoRetainer",
   "name": "AutoRetainer",
+  "hardcoded": {
+    "rows": {
+      "Addon": [
+        281,
+        3290,
+        5882
+      ],
+      "LogMessage": [
+        5800
+      ],
+      "EObjName": [
+        2002737,
+        2002739
+      ],
+      "Warp": [
+        131148
+      ],
+      "custom/000/CmnDefRetainerCall_00010": [
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        215,
+        402
+      ],
+      "custom/005/CmnDefRetainerBell_00544": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        52,
+        57
+      ],
+      "custom/000/CmnDefCabinet_00082": [
+        1
+      ],
+      "custom/003/HouFixMansionEntrance_00359": [
+        0
+      ]
+    }
+  },
   "sheets": [
     "CompanyAction"
   ],
@@ -122,6 +173,7 @@
           "default": false
         }
       ],
+      "hardcoded": true,
       "rows": {
         "Addon": [
           110,
@@ -172,6 +224,32 @@
           "default": false
         }
       ],
+      "hardcoded": {
+        "sheets": [
+          "custom/002/CmnDefCompanyCommanderBoard_00258",
+          "custom/004/HouFixCompanySubmarine_00447",
+          "SubmarineExploration"
+        ],
+        "rows": {
+          "Addon": [
+            2,
+            5,
+            6587,
+            6886
+          ],
+          "LogMessage": [
+            4169,
+            4272
+          ],
+          "CustomTalk": [
+            721154,
+            721343
+          ],
+          "custom/001/CmnDefHousingPersonalRoomEntrance_00178": [
+            11
+          ]
+        }
+      },
       "sheets": [
         "custom/002/CmnDefCompanyCommanderBoard_00258",
         "custom/004/HouFixCompanySubmarine_00447",

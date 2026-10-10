@@ -32,7 +32,8 @@ internal sealed record SessionInfo(
     IReadOnlyList<string> CompatibilityAtStart,
     string? CompatibilityError,
     NameDictionary? Dictionary,
-    NameLookup? Lookup);
+    NameLookup? Lookup,
+    SharedSheets? SharedSheets);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {

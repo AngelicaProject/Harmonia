@@ -241,4 +241,56 @@ public sealed class CompatibilityProfileTests
         Assert.Equal((CellDecision.Applied, "Привет"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Hello"));
         Assert.Equal(0, runtime.GetTotals().Kept);
     }
+
+    [Fact]
+    public void Plugins_given_the_translation_keep_only_what_they_do_not_read_from_the_game_files()
+    {
+        var profile = CompatibilityProfile.Parse("""
+            {"plugin":"X","sheets":["World"],"rows":{"Addon":[1,2,3]},
+             "hardcoded":{"rows":{"Addon":[2]}},
+             "optional":[
+               {"when":[{"config":"X.json","path":"On","equals":true,"default":true}],"rows":{"Lobby":[5]},"hardcoded":true},
+               {"when":[{"config":"X.json","path":"On","equals":true,"default":true}],"rows":{"Warp":[9]}}]}
+            """);
+
+        var all = CompatibilityProfile.Keep([profile], static _ => []);
+        Assert.True(all.KeepsSheet("World"));
+        Assert.Equal([1u, 2u, 3u], all.RowsOf("Addon")!.Order());
+        Assert.NotNull(all.RowsOf("Lobby"));
+        Assert.NotNull(all.RowsOf("Warp"));
+
+        var hardcoded = CompatibilityProfile.Keep([profile], static _ => [], null, hardcodedOnly: true);
+        Assert.False(hardcoded.KeepsSheet("World"));
+        Assert.Equal([2u], hardcoded.RowsOf("Addon")!);
+        Assert.Equal([5u], hardcoded.RowsOf("Lobby")!);
+        Assert.Null(hardcoded.RowsOf("Warp"));
+
+        // A condition that fails keeps nothing of its part in either case.
+        Assert.Null(CompatibilityProfile.Keep([profile], static _ => [], static _ => false, hardcodedOnly: true).RowsOf("Lobby"));
+
+        Assert.True(profile.KeepsAnything(null, hardcodedOnly: true));
+        Assert.False(CompatibilityProfile.Parse("""{"plugin":"Y","rows":{"Addon":[1]}}""").KeepsAnything(null, hardcodedOnly: true));
+        Assert.Throws<FormatException>(() => CompatibilityProfile.Parse("""{"plugin":"Z","hardcoded":7}"""));
+    }
+
+    [Fact]
+    public void Built_in_profiles_keep_text_for_four_plugins_when_plugins_are_given_the_translation()
+    {
+        Assert.Empty(CompatibilityProfile.LoadErrors);
+        var keeping = CompatibilityProfile.All.Where(static p => p.KeepsAnything(null, hardcodedOnly: true)).Select(static p => p.Plugin);
+
+        Assert.Equal(["AutoRetainer", "Henchman", "Lifestream", "TextAdvance"], keeping.Order(StringComparer.Ordinal));
+
+        // What stays is always part of what the whole profile keeps.
+        foreach (var profile in CompatibilityProfile.All)
+        {
+            var whole = CompatibilityProfile.Keep([profile], static _ => []);
+            foreach (var part in profile.Parts.Select(static p => p.Hardcoded).OfType<CompatibilityPart>())
+            {
+                Assert.All(part.Sheets, sheet => Assert.True(whole.KeepsSheet(sheet)));
+                foreach (var (sheet, rows) in part.Rows)
+                    Assert.Subset(whole.RowsOf(sheet)!.ToHashSet(), rows.ToHashSet());
+            }
+        }
+    }
 }

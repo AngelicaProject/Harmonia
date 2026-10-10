@@ -39,6 +39,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly TextCaseHooks? caseHooks;
     private readonly GameFonts? fonts;
     private readonly NameDictionary? dictionary;
+    private readonly SharedSheets? sharedSheets;
+    private readonly OriginalSheets originals;
     private readonly NameLookup? lookup;
     private readonly WindowSystem windows = new("Harmonia");
     private readonly MainWindow mainWindow;
@@ -130,11 +132,14 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                 try
                 {
                     // Plugins load after Harmonia, so being installed is what counts.
-                    compatibility = RelevantProfiles(pluginInterface, pluginConfigs)
+                    // Plugins that are given the translation need only the
+                    // text they do not read from the game files.
+                    var shared = configuration.TranslatePluginData && SharedSheets.Available;
+                    compatibility = RelevantProfiles(pluginInterface, pluginConfigs, shared)
                         .Where(p => CompatibilityProfile.IsOn(p, configuration.DisabledCompatibility))
                         .ToList();
                     var sources = new CompatibilitySources(dataManager, log);
-                    keep = CompatibilityProfile.Keep(compatibility, sources.Rows, c => c.Holds(pluginConfigs));
+                    keep = CompatibilityProfile.Keep(compatibility, sources.Rows, c => c.Holds(pluginConfigs), shared);
                     if (compatibility.Count > 0)
                         log.Info("Kept in the game's language for plugin compatibility: " + string.Join(", ", compatibility.Select(static p => p.Plugin)));
                 }
@@ -172,11 +177,18 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                     }
                 }
 
-                // Without the hooks the game shows no translation to look up.
-                if (hooks is not null)
-                    dictionary = new NameDictionary(dataManager, runtime, configuration, log);
+                // Without the hooks the game shows the original, and so
+                // must the files other plugins read.
+                if (hooks is not null && configuration.TranslatePluginData)
+                    sharedSheets = new SharedSheets(dataManager.GameData, runtime, log);
             }
         }
+
+        originals = new OriginalSheets(dataManager, sharedSheets is not null);
+
+        // Without the hooks the game shows no translation to look up.
+        if (hooks is not null && runtime is not null)
+            dictionary = new NameDictionary(originals, runtime, configuration, log);
 
         var feedState = new FeedUpdateState();
         feeds = new FeedUpdateService(
@@ -210,11 +222,11 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup),
+                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets),
             pluginInterface.UiBuilder,
             textures,
-            () => RelevantProfiles(pluginInterface, pluginConfigs),
-            new SheetPreviews(dataManager, log));
+            () => RelevantProfiles(pluginInterface, pluginConfigs, configuration.TranslatePluginData && SharedSheets.Available),
+            new SheetPreviews(originals, log));
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
             IsOpen = reloaded,
@@ -262,6 +274,10 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
         // Waits for a running build: it reads translations from the pack.
         dictionary?.Dispose();
+        originals.Dispose();
+
+        // Other plugins read the original again; the pack is still mapped.
+        sharedSheets?.Dispose();
 
         caseHooks?.Dispose();
 
@@ -277,12 +293,12 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     // Profiles of installed plugins that keep text with their current
     // settings; none when that cannot be told (the window asks every few
     // seconds and must keep drawing).
-    private static IReadOnlyList<CompatibilityProfile> RelevantProfiles(IDalamudPluginInterface pluginInterface, string pluginConfigs)
+    private static IReadOnlyList<CompatibilityProfile> RelevantProfiles(IDalamudPluginInterface pluginInterface, string pluginConfigs, bool hardcodedOnly)
     {
         try
         {
             return CompatibilityProfile.Installed(CompatibilityProfile.All, InstalledPluginNames(pluginInterface))
-                .Where(p => p.KeepsAnything(c => c.Holds(pluginConfigs)))
+                .Where(p => p.KeepsAnything(c => c.Holds(pluginConfigs), hardcodedOnly))
                 .ToList();
         }
         catch (Exception)

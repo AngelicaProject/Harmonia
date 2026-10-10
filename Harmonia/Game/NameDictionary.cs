@@ -35,7 +35,7 @@ internal static class GameLanguages
 // game files, which the row hooks never change, so it has the originals; what
 // the game shows comes from the pack under the row hook's own rules. Built on
 // first use; exists only while a pack is loaded.
-internal sealed class NameDictionary(IDataManager data, TranslationRuntime runtime, Configuration configuration, IHarmoniaLog log)
+internal sealed class NameDictionary(OriginalSheets data, TranslationRuntime runtime, Configuration configuration, IHarmoniaLog log)
     : IDisposable
 {
     private readonly CancellationTokenSource stopping = new();

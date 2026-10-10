@@ -1,6 +1,7 @@
 {
   "plugin": "Henchman",
   "name": "Henchman",
+  "hardcoded": {"rows": {"Addon": [91, 17610], "custom/000/CmnDefRetainerCall_00010": [196, 198, 200, 202, 208], "custom/005/CmnDefRetainerBell_00544": [35, 37, 39, 41, 47]}},
   "sheets": ["World"],
   "cells": [{"sheet": "ClassJob", "columns": [0], "rows": [1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 26]}],
   "rows": {

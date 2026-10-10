@@ -23,7 +23,13 @@ namespace Harmonia.Compatibility;
 //   optional  [{ when, require, sheets, rows, cells, sources }]: kept only
 //             while one of the "when" conditions on the plugin's own
 //             settings holds and every "require" condition does, for
-//             features that are off by default or cost much text.
+//             features that are off by default or cost much text;
+//   hardcoded what of a part stays even when the plugin is given the
+//             translated text (Game/SharedSheets), as a part of its own
+//             (sheets, rows, cells, sources) or `true` for all of it: text
+//             the plugin has in its own code in the game's languages, or
+//             reads from another row than the one the game shows. The rest
+//             of a part is text the plugin reads from the game files.
 public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyList<CompatibilityPart> Parts)
 {
     private const string ResourcePrefix = "Compatibility.";
@@ -71,16 +77,19 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
         !disabledPlugins.Contains(profile.Plugin, StringComparer.OrdinalIgnoreCase);
 
     // sourceRows lists the rows of a source (a source that fails keeps
-    // nothing); holds decides an optional part's condition.
+    // nothing); holds decides an optional part's condition. With
+    // hardcodedOnly, plugins read the translation from the game files and
+    // only what they do not read there is kept.
     public static KeptRows Keep(
         IEnumerable<CompatibilityProfile> profiles,
         Func<string, IEnumerable<(string Sheet, uint Row)>> sourceRows,
-        Func<CompatibilityCondition, bool>? holds = null)
+        Func<CompatibilityCondition, bool>? holds = null,
+        bool hardcodedOnly = false)
     {
         var keep = new KeptRows();
-        foreach (var part in profiles.SelectMany(static p => p.Parts))
+        foreach (var whole in profiles.SelectMany(static p => p.Parts))
         {
-            if (!part.Applies(holds))
+            if (!whole.Applies(holds) || (hardcodedOnly ? whole.Hardcoded : whole) is not { } part)
                 continue;
 
             foreach (var sheet in part.Sheets)
@@ -105,8 +114,9 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
     }
 
     // Whether the profile keeps any text with these plugin settings.
-    public bool KeepsAnything(Func<CompatibilityCondition, bool>? holds = null) =>
-        Parts.Any(p => p.Applies(holds) && p.Sheets.Count + p.Rows.Count + p.Cells.Count + p.Sources.Count > 0);
+    public bool KeepsAnything(Func<CompatibilityCondition, bool>? holds = null, bool hardcodedOnly = false) =>
+        Parts.Any(whole => whole.Applies(holds) && (hardcodedOnly ? whole.Hardcoded : whole) is { } p &&
+                           p.Sheets.Count + p.Rows.Count + p.Cells.Count + p.Sources.Count > 0);
 
     private static string NameKey(string name) =>
         new([.. name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant)]);
@@ -127,13 +137,23 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
                     ? throw new FormatException("Cells take rows or a source, not both.")
                     : new CompatibilityCells(c.Sheet, c.Columns, c.Rows, c.Source)).ToList();
 
-        return new CompatibilityPart(
+        var part = new CompatibilityPart(
             when,
             require,
             file.Sheets ?? [],
             (file.Rows ?? []).ToDictionary(static p => p.Key, static p => (IReadOnlyList<uint>)p.Value, StringComparer.Ordinal),
             cells,
             sources);
+        return file.Hardcoded switch
+        {
+            null or { Type: JTokenType.Null } => part,
+            { Type: JTokenType.Boolean } flag => (bool)flag ? part with { Hardcoded = part } : part,
+            JObject subset => part with
+            {
+                Hardcoded = ParsePart(subset.ToObject<PartFile>() ?? throw new FormatException("Empty hardcoded part."), [], []),
+            },
+            _ => throw new FormatException("\"hardcoded\" is true or a part."),
+        };
     }
 
     private static CompatibilityCondition ParseCondition(ConditionFile c) =>
@@ -185,6 +205,7 @@ public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyL
         public Dictionary<string, List<uint>>? Rows { get; set; }
         public List<CellsFile>? Cells { get; set; }
         public List<string>? Sources { get; set; }
+        public JToken? Hardcoded { get; set; }
     }
 
     private sealed class ProfileFile : PartFile
@@ -231,6 +252,10 @@ public sealed record CompatibilityPart(
     IReadOnlyList<CompatibilityCells> Cells,
     IReadOnlyList<string> Sources)
 {
+    // What of this part is kept even when the plugin reads the translation
+    // from the game files; null when nothing is.
+    public CompatibilityPart? Hardcoded { get; init; }
+
     // Without holds every condition counts as met.
     public bool Applies(Func<CompatibilityCondition, bool>? holds)
     {

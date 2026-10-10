@@ -41,6 +41,13 @@ public sealed class Configuration : IPluginConfiguration
     public List<string> DisabledCompatibility { get; set; } = [];
 
     /// <summary>
+    /// Experimental: other plugins read the translation from the game files
+    /// (Game/SharedSheets), so they find the text the game shows without a
+    /// compatibility profile. Applies at the next game start.
+    /// </summary>
+    public bool TranslatePluginData { get; set; }
+
+    /// <summary>
     /// Game languages ("ja", "en", "de", "fr") the name dictionary shows next
     /// to the client language's names. The client language is always shown.
     /// </summary>

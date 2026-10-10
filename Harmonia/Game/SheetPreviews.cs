@@ -15,7 +15,7 @@ internal sealed record SheetSample(string Original, string? Translated);
 // Originals come from the game files through Lumina; translations from the
 // selected pack, opened and verified on its own (it may not be the one this
 // session loaded). Reference only: nothing here decides what the game shows.
-internal sealed class SheetPreviews(IDataManager data, IHarmoniaLog log) : IDisposable
+internal sealed class SheetPreviews(OriginalSheets data, IHarmoniaLog log) : IDisposable
 {
     private const int MaxSamples = 3;
     private const int MaxRows = 400;

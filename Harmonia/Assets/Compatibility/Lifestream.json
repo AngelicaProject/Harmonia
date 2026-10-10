@@ -1,6 +1,7 @@
 {
   "plugin": "Lifestream",
   "name": "Lifestream",
+  "hardcoded": {"rows": {"Addon": [2090, 6349, 6355, 6782, 6784, 12519, 12624], "Lobby": [11, 25, 95, 96, 629, 1117, 1150, 1218], "LogMessage": [430, 9419, 9426, 9427], "EObjName": [2000151, 2002737, 2002739, 2004353], "Warp": [131148], "transport/Aetheryte": [1, 2, 3, 16], "transport/AetheryteIshgard": [0], "custom/001/CmnDefHousingPersonalRoomEntrance_00178": [11], "custom/003/HouFixMansionEntrance_00359": [0, 2], "custom/007/CtsMjiEntrance_00798": [4, 7]}},
   "sheets": ["World", "WorldDCGroupType"],
   "rows": {
     "Addon": [2090, 6349, 6355, 6782, 6784, 12519, 12624],

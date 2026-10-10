@@ -92,6 +92,8 @@ public sealed unsafe class TranslationRuntime : IDisposable
 
     public PackRuntimeInfo Info { get; }
 
+    public IReadOnlyList<string> SheetNames => pack.SheetNames;
+
     // Pack sheets the player keeps in the game's language this session.
     public int UntranslatedSheets { get; }
 
