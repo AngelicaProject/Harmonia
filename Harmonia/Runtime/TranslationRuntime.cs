@@ -11,7 +11,8 @@ public enum CellDecision
     // was made for; the original text stays.
     SourceChanged,
 
-    // Another plugin looks for the original text (KeptRows).
+    // Another plugin looks for the original text (KeptRows), or the game
+    // compares what the player says with it (a quest's Say phrase).
     Kept,
 }
 
@@ -41,11 +42,16 @@ public readonly record struct RuntimeTotals(
 // game threads, so counters are atomic and everything else is read-only.
 public sealed unsafe class TranslationRuntime : IDisposable
 {
+    // A quest's text sheet: the key in column 0, the text in column 1.
+    public const string QuestSheetPrefix = "quest/";
+    public const uint QuestTextColumn = 1;
+
     private readonly HpkFile pack;
     private readonly bool[] untranslated;
     private readonly IReadOnlySet<uint>?[] keptRows;
     private readonly HashSet<ushort>?[] keptOrdinals;
     private readonly Dictionary<uint, HashSet<ushort>>?[] keptCells;
+    private readonly Lazy<SaidRows?>?[] said;
     private readonly long[] kept;
     private readonly long[] applied;
     private readonly long[] changed;
@@ -53,10 +59,17 @@ public sealed unsafe class TranslationRuntime : IDisposable
     private readonly long[] unexpected;
     private readonly int[] layoutMismatch;
 
+    // The rows of a quest text sheet whose text the game compares with what
+    // the player says, and where that text is among the String columns.
+    private sealed record SaidRows(IReadOnlySet<uint> Rows, ushort Ordinal);
+
     // packId is the installed translation's name in the pack store; the
     // sheets the filter excludes and the kept rows stay in the game's language.
+    // saidRows gives, for a quest text sheet, the rows whose text (the sheet's
+    // second column) stays as well; it is asked once for a sheet, when the
+    // sheet's first cell is decided, and must not throw.
     public TranslationRuntime(HpkFile pack, string packId, string filePath, SheetFilter? untranslatedSheets = null,
-        KeptRows? keep = null)
+        KeptRows? keep = null, Func<string, IReadOnlySet<uint>?>? saidRows = null)
     {
         if (pack.Mode != HpkOpenMode.Full)
             throw new ArgumentException("Runtime packs must be fully verified.", nameof(pack));
@@ -73,6 +86,7 @@ public sealed unsafe class TranslationRuntime : IDisposable
         keptRows = new IReadOnlySet<uint>?[sheets];
         keptOrdinals = new HashSet<ushort>?[sheets];
         keptCells = new Dictionary<uint, HashSet<ushort>>?[sheets];
+        said = new Lazy<SaidRows?>?[sheets];
         for (var i = 0; i < sheets; i++)
         {
             var name = pack.SheetNames[i];
@@ -85,6 +99,11 @@ public sealed unsafe class TranslationRuntime : IDisposable
                 keptOrdinals[i] = Ordinals(i, columns);
             if (keep?.CellsOf(name) is { } cells)
                 keptCells[i] = cells.ToDictionary(static c => c.Key, c => Ordinals(i, c.Value));
+            if (saidRows is not null && name.StartsWith(QuestSheetPrefix, StringComparison.Ordinal))
+            {
+                var sheet = i;
+                said[i] = new Lazy<SaidRows?>(() => Said(sheet, name, saidRows));
+            }
         }
 
         Info = new PackRuntimeInfo(packId, pack.Manifest.Title, filePath, pack.SheetCount, pack.CellCount);
@@ -173,7 +192,22 @@ public sealed unsafe class TranslationRuntime : IDisposable
 
     private bool IsKeptCell(int sheet, uint rowId, ushort ordinal) =>
         keptOrdinals[sheet]?.Contains(ordinal) == true ||
-        (keptCells[sheet] is { } cells && cells.TryGetValue(rowId, out var ordinals) && ordinals.Contains(ordinal));
+        (keptCells[sheet] is { } cells && cells.TryGetValue(rowId, out var ordinals) && ordinals.Contains(ordinal)) ||
+        (said[sheet]?.Value is { } rows && rows.Ordinal == ordinal && rows.Rows.Contains(rowId));
+
+    private SaidRows? Said(int sheet, string name, Func<string, IReadOnlySet<uint>?> saidRows)
+    {
+        try
+        {
+            var ordinals = Ordinals(sheet, [QuestTextColumn]);
+            return ordinals.Count == 1 && saidRows(name) is { Count: > 0 } rows ? new SaidRows(rows, ordinals.First()) : null;
+        }
+        catch (Exception)
+        {
+            // The sheet is translated whole, as without Say phrases.
+            return null;
+        }
+    }
 
     // Positions in the pack layout of the given game column indexes.
     private HashSet<ushort> Ordinals(int sheet, IEnumerable<uint> columns)

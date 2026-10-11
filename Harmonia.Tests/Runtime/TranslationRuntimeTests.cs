@@ -97,6 +97,51 @@ public sealed class TranslationRuntimeTests
     }
 
     [Fact]
+    public unsafe void Said_rows_of_a_quest_sheet_keep_their_text_only()
+    {
+        StringColumn[] columns = [new(0, 0), new(1, 4)];
+        var builder = HpkBuilder.WithDefaultSheet();
+        builder.Sheets.Add(new HpkTestSheet("quest/000/Say_00001", false, [(0, 0), (1, 4)],
+        [
+            new HpkTestCell(5, 0, 1, "лали-хо", "lali-ho"),
+            new HpkTestCell(6, 0, 1, "Скажи «лали-хо».", "Say \"lali-ho\"."),
+        ]));
+        var asked = new List<string>();
+        using var runtime = new TranslationRuntime(
+            HpkFile.FromBytes(builder.Build(), HpkOpenMode.Full), "test", "test.hpk",
+            saidRows: name =>
+            {
+                asked.Add(name);
+                return name == "quest/000/Say_00001" ? new HashSet<uint> { 5 } : null;
+            });
+
+        var addon = runtime.BindSheet("Addon", false, AddonColumns);
+        var say = runtime.BindSheet("quest/000/Say_00001", false, columns);
+        Assert.Equal((CellDecision.Applied, "Привет"), RuntimeProbe.Lookup(runtime, addon, 1, 0, 0, "Hello"));
+        Assert.Equal(CellDecision.Kept, RuntimeProbe.Lookup(runtime, say, 5, 0, 1, "lali-ho").Decision);
+        Assert.Equal((CellDecision.Applied, "Скажи «лали-хо»."), RuntimeProbe.Lookup(runtime, say, 6, 0, 1, "Say \"lali-ho\"."));
+        Assert.False(runtime.TryGetShown(say, 5, 0, 1, "lali-ho"u8, out _));
+        Assert.True(runtime.TryGetShown(say, 6, 0, 1, "Say \"lali-ho\"."u8, out _));
+        Assert.Equal(1, runtime.GetTotals().Kept);
+
+        // Asked once, and only for quest sheets.
+        Assert.Equal(["quest/000/Say_00001"], asked);
+    }
+
+    [Fact]
+    public void A_failing_source_of_said_rows_leaves_the_sheet_translated()
+    {
+        var builder = HpkBuilder.WithDefaultSheet();
+        builder.Sheets.Add(new HpkTestSheet("quest/000/Say_00001", false, [(0, 0), (1, 4)], [new HpkTestCell(5, 0, 1, "лали-хо", "lali-ho")]));
+        using var runtime = new TranslationRuntime(
+            HpkFile.FromBytes(builder.Build(), HpkOpenMode.Full), "test", "test.hpk",
+            saidRows: static _ => throw new InvalidOperationException());
+
+        var say = runtime.BindSheet("quest/000/Say_00001", false, [new StringColumn(0, 0), new StringColumn(1, 4)]);
+        Assert.Equal((CellDecision.Applied, "лали-хо"), RuntimeProbe.Lookup(runtime, say, 5, 0, 1, "lali-ho"));
+    }
+
+    [Fact]
     public void Sheets_kept_in_the_game_language_are_not_bound()
     {
         using var runtime = new TranslationRuntime(

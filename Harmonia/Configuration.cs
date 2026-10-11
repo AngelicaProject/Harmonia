@@ -48,6 +48,14 @@ public sealed class Configuration : IPluginConfiguration
     public bool TranslatePluginData { get; set; }
 
     /// <summary>
+    /// Experimental: the phrases quests ask the player to say stay in the
+    /// game's language, and a phrase typed in the translation is said in the
+    /// game's language (Game/SayPhrases, Game/SayHook). Applies at the next
+    /// game start.
+    /// </summary>
+    public bool OriginalSayPhrases { get; set; }
+
+    /// <summary>
     /// Game languages ("ja", "en", "de", "fr") the name dictionary shows next
     /// to the client language's names. The client language is always shown.
     /// </summary>

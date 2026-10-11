@@ -67,6 +67,28 @@ internal sealed partial class MainWindow
                         ? Lang.T("compat.shared_done", shared.Sheets, shared.Cells, shared.Elapsed.TotalSeconds.ToString("F1"))
                         : Lang.T("compat.shared_running", shared.Sheets));
             }
+
+            Ui.Gap(4);
+            var say = configuration.OriginalSayPhrases;
+            if (ImGui.Checkbox(Lang.T("say.option"), ref say))
+            {
+                configuration.OriginalSayPhrases = say;
+                save();
+            }
+
+            Ui.Hint(Lang.T("say.hint"));
+            if (info.SayError is not null)
+            {
+                Ui.Gap(2);
+                Ui.Hint(Lang.T("say.failed"));
+            }
+            else if (info.SayPhrases is { } phrases && info.SayHook is { } sayHook)
+            {
+                Ui.Gap(2);
+                Ui.Hint(Lang.T("say.status", phrases.Quests.Count, sayHook.Replaced));
+                if (phrases.Skipped.Count != 0)
+                    Ui.Hint(Lang.T("say.skipped", phrases.Skipped.Count));
+            }
         }
 
         Ui.Gap(4);

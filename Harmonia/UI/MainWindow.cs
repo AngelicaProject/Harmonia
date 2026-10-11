@@ -33,7 +33,10 @@ internal sealed record SessionInfo(
     string? CompatibilityError,
     NameDictionary? Dictionary,
     NameLookup? Lookup,
-    SharedSheets? SharedSheets);
+    SharedSheets? SharedSheets,
+    SayPhrases? SayPhrases,
+    SayHook? SayHook,
+    string? SayError);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {

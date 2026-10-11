@@ -37,6 +37,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly TranslationRuntime? runtime;
     private readonly ExcelRowHooks? hooks;
     private readonly TextCaseHooks? caseHooks;
+    private readonly SayHook? sayHook;
     private readonly GameFonts? fonts;
     private readonly NameDictionary? dictionary;
     private readonly SharedSheets? sharedSheets;
@@ -111,6 +112,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         string? packError = null;
         string? hookError = null;
         string? compatibilityError = null;
+        string? sayError = null;
+        SayPhrases? say = null;
         IReadOnlyList<CompatibilityProfile> compatibility = [];
         // Other plugins keep their settings next to Harmonia's own directory.
         var pluginConfigs = pluginInterface.ConfigDirectory.Parent?.FullName ?? dataDir;
@@ -151,8 +154,27 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                     log.Error("Plugin compatibility could not be prepared; everything is translated.", ex);
                 }
 
+                // A Say phrase stays in the game's language only while the
+                // chat hook can say it for the player: without the hook the
+                // quest would wait for a phrase the journal does not show.
+                SayPhrases? sayPhrases = null;
+                if (configuration.OriginalSayPhrases)
+                {
+                    try
+                    {
+                        sayPhrases = new SayPhrases(dataManager.GameData, file, log);
+                        sayHook = new SayHook(interop, dataManager.GameData, sayPhrases, log);
+                    }
+                    catch (Exception ex)
+                    {
+                        sayPhrases = null;
+                        sayError = ex.Message;
+                        log.Error("The chat hook could not be installed; quest phrases stay translated.", ex);
+                    }
+                }
+
                 runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
-                    new SheetFilter(configuration.UntranslatedSheets), keep);
+                    new SheetFilter(configuration.UntranslatedSheets), keep, sayPhrases is null ? null : sayPhrases.Rows);
                 try
                 {
                     hooks = new ExcelRowHooks(interop, scanner, runtime, log);
@@ -161,7 +183,13 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                 {
                     hookError = ex.Message;
                     log.Error("Excel row hooks could not be installed; the game stays untranslated.", ex);
+
+                    // Nothing is translated, so there is no phrase to change.
+                    sayHook?.Dispose();
+                    sayHook = null;
                 }
+
+                say = sayHook is null ? null : sayPhrases;
 
                 // The game capitalizes only Latin letters; a Cyrillic pack
                 // needs its <head> and <caps> names capitalized too.
@@ -222,7 +250,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets),
+                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets, say, sayHook, sayError),
             pluginInterface.UiBuilder,
             textures,
             () => RelevantProfiles(pluginInterface, pluginConfigs, configuration.TranslatePluginData && SharedSheets.Available),
@@ -280,6 +308,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         sharedSheets?.Dispose();
 
         caseHooks?.Dispose();
+        sayHook?.Dispose();
 
         // The hooks wait for running detours before the pack is unmapped.
         hooks?.Dispose();

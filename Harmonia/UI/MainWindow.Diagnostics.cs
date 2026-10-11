@@ -218,6 +218,18 @@ internal sealed partial class MainWindow
         if (info.Hooks is { } hooks)
             text.AppendLine(CultureInfo.InvariantCulture, $"StoreRow hooks: {hooks.HashTableAddress:X}, {hooks.RingBufferAddress:X}; errors {hooks.Errors}");
         text.AppendLine(CultureInfo.InvariantCulture, $"Letter case hooks: {(info.CaseHooks is { } caseHooks ? "on, errors " + caseHooks.Errors : "off")}");
+        if (info.SayError is not null)
+            text.AppendLine(CultureInfo.InvariantCulture, $"Say phrases error: {info.SayError}");
+        if (info.SayPhrases is { } sayPhrases && info.SayHook is { } sayHook)
+        {
+            text.AppendLine(CultureInfo.InvariantCulture, $"Say phrases: hook {sayHook.Address:X}, quests {sayPhrases.Quests.Count}, lines changed {sayHook.Replaced}, errors {sayHook.Errors}");
+            foreach (var (sheet, reason) in sayPhrases.Skipped.OrderBy(static s => s.Key, StringComparer.Ordinal))
+                text.AppendLine(CultureInfo.InvariantCulture, $"  {sheet} left translated: {reason}");
+        }
+        else
+        {
+            text.AppendLine("Say phrases: off");
+        }
 
         if (info.Runtime is { } runtime)
         {
