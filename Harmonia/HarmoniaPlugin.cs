@@ -191,6 +191,9 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
                 say = sayHook is null ? null : sayPhrases;
 
+                if (hooks is not null)
+                    AngelicaHandoff.AnswerRunningGame(log);
+
                 // The game capitalizes only Latin letters; a Cyrillic pack
                 // needs its <head> and <caps> names capitalized too.
                 if (hooks is not null && CyrillicCase.IsCyrillicLanguage(file.Manifest.Language))
