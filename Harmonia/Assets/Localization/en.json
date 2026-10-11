@@ -279,6 +279,7 @@
   "info.fonts_applied": "added to {0} font sizes through Penumbra",
   "info.fonts_no_penumbra": "not added: Penumbra isn't installed or enabled",
   "info.fonts_needs_reload": "prepared, but the game wasn't asked to reload its fonts: this game version isn't recognized yet (use Reload Fonts in Penumbra)",
+  "info.fonts_unrecognized": "not added: the game's font tables aren't recognized in this game version yet",
   "info.fonts_failed": "failed: {0}",
   "info.fonts_skipped": "Skipped because the game font changed or has no room: {0}",
   "info.section_session": "Since the game started",

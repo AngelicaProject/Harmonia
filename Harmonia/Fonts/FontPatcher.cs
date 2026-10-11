@@ -4,13 +4,14 @@ namespace Harmonia.Fonts;
 
 // A family of .fdt files that share atlas textures. The main set is used in
 // game; the title screen loads its own "_lobby" copies with separate textures.
-public sealed record FontSet(string Name, string FdtSuffix, string TexturePrefix, int[] CandidatePages)
+public sealed record FontSet(string Name, string FdtSuffix, string TexturePrefix)
 {
-    // Pages no game font table references. A page is used only when it is
-    // also completely empty in the running game's texture.
-    public static readonly FontSet Main = new("main", string.Empty, "common/font/font", [10, 11, 25, 26, 27]);
-    public static readonly FontSet Lobby = new("lobby", "_lobby", "common/font/font_lobby", [23]);
+    public static readonly FontSet Main = new("main", string.Empty, "common/font/font");
+    public static readonly FontSet Lobby = new("lobby", "_lobby", "common/font/font_lobby");
     public static readonly FontSet[] All = [Main, Lobby];
+
+    // The texture name as the game's font tables spell it.
+    public string TexturePattern => TexturePrefix[(TexturePrefix.LastIndexOf('/') + 1)..] + "%d.tex";
 
     public string FdtPath(string name) => $"common/font/{name}{FdtSuffix}.fdt";
 
@@ -35,24 +36,28 @@ public sealed record FontPatchResult(IReadOnlyDictionary<string, byte[]> Files, 
 // added: glyphs whose character the font already has are skipped. Replacement
 // glyphs (format minor 2) take over the record of a character the font has,
 // keeping its Shift-JIS code, and are added otherwise. Either way kerning
-// pairs and used atlas pages are never changed: new bitmaps go only into
-// candidate pages that are empty in the game's texture, and a replaced
-// glyph's old bitmap stays where it was.
+// pairs and what an atlas page holds are never changed: new bitmaps go only
+// below everything a page has (its pixels and the glyphs of every font table
+// of the set), on pages the game loads with that font (FontTables), and a
+// replaced glyph's old bitmap stays where it was.
 public static class FontPatcher
 {
+    // Part of the cache key: files laid out by an earlier rule are rebuilt.
+    public const int Layout = 2;
+
     // Shift-JIS codes the game stores for these characters come from its own
     // AXIS table, which has Cyrillic.
     private const string ShiftJisReference = "AXIS_12";
 
-    public static FontPatchResult Patch(HpkFonts fonts, Func<string, byte[]?> readGameFile) =>
-        Patch(fonts, null, readGameFile);
+    public static FontPatchResult Patch(HpkFonts fonts, FontTables tables, Func<string, byte[]?> readGameFile) =>
+        Patch(fonts, null, tables, readGameFile);
 
-    public static FontPatchResult Patch(HpkFonts? fonts, HpkFonts? replacements, Func<string, byte[]?> readGameFile)
+    public static FontPatchResult Patch(HpkFonts? fonts, HpkFonts? replacements, FontTables tables, Func<string, byte[]?> readGameFile)
     {
         var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         var reports = new List<FontTargetReport>();
         foreach (var set in FontSet.All)
-            PatchSet(set, fonts, replacements, readGameFile, files, reports);
+            PatchSet(set, fonts, replacements, tables, readGameFile, files, reports);
 
         return new FontPatchResult(files, reports);
     }
@@ -63,6 +68,7 @@ public static class FontPatcher
         FontSet set,
         HpkFonts? fonts,
         HpkFonts? replacements,
+        FontTables fontTables,
         Func<string, byte[]?> read,
         Dictionary<string, byte[]> files,
         List<FontTargetReport> reports)
@@ -96,10 +102,39 @@ public static class FontPatcher
             return table;
         }
 
-        var free = set.CandidatePages
-            .Where(page => Texture(page) is { } texture && texture.IsChannelEmpty(page % FontTexture.Channels))
-            .ToArray();
-        var first = free.Length > 0 ? Texture(free[0]) : null;
+        // The rows the set's own glyphs take on every page. A glyph on a page
+        // the game does not load with its font means the tables are not what
+        // they are taken for, and nothing of the set can be placed safely.
+        var used = new int[fontTables.Pages(set)];
+        foreach (var name in fontTables.Fonts(set))
+        {
+            if (Table(set.FdtPath(name)) is not { } fdt)
+                continue;
+
+            var limit = fontTables.Pages(set, name);
+            foreach (var glyph in fdt.Glyphs)
+            {
+                if (glyph.TexIndex >= limit)
+                    throw new FormatException($"{set.FdtPath(name)} has a glyph on page {glyph.TexIndex}; the game loads {limit} pages with it.");
+                used[glyph.TexIndex] = Math.Max(used[glyph.TexIndex], glyph.Y + glyph.Height);
+            }
+        }
+
+        // Emptier pages first; a page is taken only at the size of the first.
+        var free = new List<AtlasPage>();
+        for (var page = 0; page < used.Length; page++)
+        {
+            if (Texture(page) is not { } texture)
+                continue;
+
+            var top = Math.Max(used[page], texture.UsedRows(page % FontTexture.Channels));
+            if (top < texture.Height)
+                free.Add(new AtlasPage(page, top));
+        }
+
+        free = [.. free.OrderBy(static page => page.Top).ThenBy(static page => page.Page)];
+        var first = free.Count > 0 ? Texture(free[0].Page) : null;
+        free.RemoveAll(page => Texture(page.Page) is not { } texture || texture.Width != first!.Width || texture.Height != first.Height);
         var packer = new AtlasPacker(free, first?.Width ?? 0, first?.Height ?? 0);
         var shiftJis = ReadShiftJis(read(set.FdtPath(ShiftJisReference)));
         var touched = new HashSet<string>(StringComparer.Ordinal);
@@ -109,7 +144,8 @@ public static class FontPatcher
             foreach (var target in section.Targets)
             {
                 var path = set.FdtPath(target.Name);
-                var fdt = Table(path);
+                var pageLimit = fontTables.Pages(set, target.Name);
+                var fdt = pageLimit > 0 ? Table(path) : null;
                 if (fdt is null)
                 {
                     reports.Add(new FontTargetReport(set.Name, target.Name, FontTargetStatus.MissingFont, 0, replace));
@@ -131,7 +167,7 @@ public static class FontPatcher
                     continue;
                 }
 
-                if (!packer.TryPlace(glyphs.Select(static glyph => ((int)glyph.Width, (int)glyph.Height)).ToArray(), out var placements))
+                if (!packer.TryPlace(glyphs.Select(static glyph => ((int)glyph.Width, (int)glyph.Height)).ToArray(), pageLimit, out var placements))
                 {
                     reports.Add(new FontTargetReport(set.Name, target.Name, FontTargetStatus.NoRoom, 0, replace));
                     continue;

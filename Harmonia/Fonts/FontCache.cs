@@ -4,7 +4,7 @@ namespace Harmonia.Fonts;
 
 public sealed record FontCacheEntry(IReadOnlyDictionary<string, string> Files, IReadOnlyList<FontTargetReport> Reports);
 
-// Patched font files per (game version, packHash) under <root>/<key>/, laid
+// Patched font files per (game version, layout, packHash) under <root>/<key>/, laid
 // out by game path. entry.json is written last, so a directory without it is
 // incomplete and rebuilt. Only the current key is kept.
 public sealed class FontCache
@@ -18,10 +18,10 @@ public sealed class FontCache
         this.root = root;
     }
 
-    public static string Key(string gameVersion, byte[] packHash)
+    public static string Key(string gameVersion, int layout, byte[] packHash)
     {
         var version = new string(gameVersion.Select(static c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' ? c : '_').ToArray());
-        return version + "-" + Convert.ToHexStringLower(packHash);
+        return $"{version}-{layout}-{Convert.ToHexStringLower(packHash)}";
     }
 
     public FontCacheEntry? TryLoad(string key)

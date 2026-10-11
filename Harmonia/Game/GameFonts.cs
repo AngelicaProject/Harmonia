@@ -24,13 +24,18 @@ public enum GameFontsState
     // reload function was not recognized in this game build.
     NeedsReload,
 
+    // The game's font tables were not recognized in this game build, so no
+    // page is known to be safe and the fonts are left as they are.
+    Unrecognized,
+
     Failed,
 }
 
 // Adds the active pack's FONTS glyphs to the game's own fonts and applies
 // its font replacements (format minor 2). The patched
 // .fdt and .tex files are built once per (game version, pack) from the game's
-// current files and served through a Penumbra temporary mod. Penumbra applies
+// current files, on the pages the game's own font tables allow, and served
+// through a Penumbra temporary mod. Penumbra applies
 // a temporary mod added outside a framework tick only on the next tick, after
 // the game has read its fonts, so the game is then asked to read them again.
 public sealed unsafe class GameFonts : IDisposable
@@ -45,7 +50,7 @@ public sealed unsafe class GameFonts : IDisposable
     // in this slot: after a game patch that moved or changed it, fonts are
     // reported as needing a manual reload instead of calling something else.
     private const int ReloadFontsVFunc = 43;
-    private const string ReloadFontsSignature =
+    public const string ReloadFontsSignature =
         "48 89 5C 24 ?? 48 89 74 24 ?? 55 57 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? " +
         "48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 85 ?? ?? ?? ?? 44 88 44 24 ?? 0F B6 F2 88 54 24 ?? 4C 8B E9 " +
         "48 89 4C 24 ?? 45 84 C0";
@@ -93,12 +98,20 @@ public sealed unsafe class GameFonts : IDisposable
             Sources = [.. new[] { fonts, replacements }
                 .SelectMany(static section => section?.Sources ?? [])
                 .DistinctBy(static source => (source.Family, source.Sha256))];
+            if (!TryReadTables(out var tables, out var reason))
+            {
+                State = GameFontsState.Unrecognized;
+                Error = reason;
+                log.Warning("The game's font tables were not recognized; pack glyphs are not added: " + reason);
+                return;
+            }
+
             var version = data.GameData.Repositories.TryGetValue("ffxiv", out var repository) ? repository.Version : null;
-            var key = FontCache.Key(version ?? "unknown", pack.PackHash);
+            var key = FontCache.Key(version ?? "unknown", FontPatcher.Layout, pack.PackHash);
             entry = cache.TryLoad(key);
             if (entry is null)
             {
-                var result = FontPatcher.Patch(fonts, replacements, path => data.FileExists(path) ? data.GetFile(path)?.Data : null);
+                var result = FontPatcher.Patch(fonts, replacements, tables, path => data.FileExists(path) ? data.GetFile(path)?.Data : null);
                 entry = cache.Store(key, result);
                 log.Info($"Prepared {result.Files.Count} font files for pack glyphs.");
             }
@@ -186,6 +199,32 @@ public sealed unsafe class GameFonts : IDisposable
         {
             // Penumbra is not installed or not loaded yet; Initialized retries.
             log.Debug("Penumbra is not available for fonts: " + ex.Message);
+        }
+    }
+
+    // The tables are read from the function that loads them, the one the
+    // reload below calls.
+    private bool TryReadTables(out FontTables tables, out string reason)
+    {
+        tables = null!;
+        if (!scanner.TryScanText(ReloadFontsSignature, out var function))
+        {
+            reason = "The font reload function was not found.";
+            return false;
+        }
+
+        try
+        {
+            var module = scanner.Module;
+            var image = new ReadOnlySpan<byte>((void*)module.BaseAddress, module.ModuleMemorySize);
+            tables = FontTables.Parse(FontTableScan.Read(image, (ulong)module.BaseAddress, checked((int)(function - module.BaseAddress))));
+            reason = string.Empty;
+            return true;
+        }
+        catch (Exception ex) when (ex is FormatException or OverflowException)
+        {
+            reason = ex.Message;
+            return false;
         }
     }
 

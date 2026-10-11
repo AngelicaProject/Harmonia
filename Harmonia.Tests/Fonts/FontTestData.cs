@@ -70,6 +70,81 @@ internal static class FontTestData
         return bytes;
     }
 
+    // A 0x1440 texture whose listed channels have pixels down to a row.
+    public static byte[] TextureRows(int size, params (int Channel, int Rows)[] used)
+    {
+        var bytes = Texture(size);
+        int[] shifts = [8, 4, 0, 12];
+        foreach (var (channel, rows) in used)
+        {
+            var at = bytes.AsSpan(FontTexture.HeaderSize + ((rows - 1) * size * 2));
+            BinaryPrimitives.WriteUInt16LittleEndian(at, (ushort)(BinaryPrimitives.ReadUInt16LittleEndian(at) | (0x7 << shifts[channel])));
+        }
+
+        return bytes;
+    }
+
+    public const ulong ImageBase = 0x140000000;
+    public const int ImageTables = 0x400;
+    public const int ImageNames = 0x800;
+
+    // A game image with the part of the font reload function that chooses
+    // and walks the font tables: at +0x20 the choice (the standard and the
+    // high-resolution title screen tables, then the in-game one), at +0x60
+    // the loop. Every table lists AXIS_12 and Jupiter_16 with `textures` of
+    // its own, in the order in-game, standard, high resolution.
+    public static (byte[] Image, int Function) GameImage(int records, int[] textures)
+    {
+        const int Function = 0x100;
+        var image = new byte[0x1000];
+        var names = new Dictionary<string, int>(StringComparer.Ordinal);
+        var nextName = ImageNames;
+        ulong Name(string text)
+        {
+            if (!names.TryGetValue(text, out var at))
+            {
+                at = nextName;
+                Encoding.ASCII.GetBytes(text, image.AsSpan(at));
+                nextName += text.Length + 1;
+                names[text] = at;
+            }
+
+            return ImageBase + (ulong)at;
+        }
+
+        string[] fonts = ["AXIS_12", "Jupiter_16"];
+        var tables = new int[3];
+        for (var table = 0; table < 3; table++)
+        {
+            tables[table] = ImageTables + (table * records * 0x18);
+            for (var i = 0; i < records; i++)
+            {
+                var record = image.AsSpan(tables[table] + (i * 0x18));
+                BinaryPrimitives.WriteInt32LittleEndian(record, textures[table]);
+                BinaryPrimitives.WriteUInt64LittleEndian(record[8..], Name(table == 0 ? "font%d.tex" : "font_lobby%d.tex"));
+                BinaryPrimitives.WriteUInt64LittleEndian(record[0x10..], Name(fonts[i] + (table == 0 ? ".fdt" : "_lobby.fdt")));
+            }
+        }
+
+        var code = image.AsSpan(Function + 0x20);
+        new byte[] { 0x40, 0x80, 0xFE, 0x01, 0x75, 0x1C, 0x41, 0x83, 0xBD, 0x80, 0x02, 0x00, 0x00, 0x01 }.CopyTo(code);
+        Lea(code, 14, 0x35, tables[1]);
+        Lea(code, 21, 0x05, tables[2]);
+        new byte[] { 0x48, 0x0F, 0x45, 0xF0, 0xEB, 0x07 }.CopyTo(code[28..]);
+        Lea(code, 34, 0x35, tables[0]);
+        new byte[] { 0x41, 0xFF, 0xC4, 0x48, 0x83, 0xC6, 0x18, 0x41, 0x83, 0xFC, (byte)records, 0x0F, 0x8C }.CopyTo(image.AsSpan(Function + 0x60));
+        return (image, Function);
+
+        // lea reg, [rip + target]
+        static void Lea(Span<byte> at, int offset, byte register, int target)
+        {
+            at[offset] = 0x48;
+            at[offset + 1] = 0x8D;
+            at[offset + 2] = register;
+            BinaryPrimitives.WriteInt32LittleEndian(at[(offset + 3)..], target - (Function + 0x20 + offset + 7));
+        }
+    }
+
     public static byte[] Section(params TestTarget[] targets)
     {
         var glyphs = new List<byte>();

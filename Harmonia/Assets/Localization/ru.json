@@ -277,6 +277,7 @@
   "info.fonts_applied": "добавлены в {0} размеров шрифтов через Penumbra",
   "info.fonts_no_penumbra": "не добавлены: Penumbra не установлена или выключена",
   "info.fonts_needs_reload": "подготовлены, но игру не попросили перечитать шрифты: эта версия игры ещё не распознана (нажмите Reload Fonts в Penumbra)",
+  "info.fonts_unrecognized": "не добавлены: таблицы шрифтов этой версии игры ещё не распознаны",
   "info.fonts_failed": "ошибка: {0}",
   "info.fonts_skipped": "Пропущены, потому что шрифт игры изменился или в нём нет места: {0}",
   "info.section_session": "С момента запуска игры",

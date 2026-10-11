@@ -131,6 +131,7 @@ internal sealed partial class MainWindow
             GameFontsState.Applied => Lang.T("info.fonts_applied", applied),
             GameFontsState.NeedsReload => Lang.T("info.fonts_needs_reload"),
             GameFontsState.PenumbraMissing => Lang.T("info.fonts_no_penumbra"),
+            GameFontsState.Unrecognized => Lang.T("info.fonts_unrecognized"),
             _ => Lang.T("info.fonts_failed", fonts.Error ?? "?"),
         });
 

@@ -58,18 +58,18 @@ public sealed class FontTexture
         BinaryPrimitives.WriteUInt16LittleEndian(at, pixel);
     }
 
-    // True when no pixel of the channel is set.
-    public bool IsChannelEmpty(int channel)
+    // The rows of the channel down to its last set pixel; 0 when it is empty.
+    public int UsedRows(int channel)
     {
         var mask = (ushort)(0xF << ChannelShift[channel]);
         var surface = bytes.AsSpan(HeaderSize, Width * Height * 2);
-        for (var i = 0; i < surface.Length; i += 2)
+        for (var i = surface.Length - 2; i >= 0; i -= 2)
         {
             if ((BinaryPrimitives.ReadUInt16LittleEndian(surface[i..]) & mask) != 0)
-                return false;
+                return (i / 2 / Width) + 1;
         }
 
-        return true;
+        return 0;
     }
 
     public byte[] ToArray() => (byte[])bytes.Clone();
