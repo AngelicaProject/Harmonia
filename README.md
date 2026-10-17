@@ -43,4 +43,4 @@ Translations are packs made with [Aeria](https://github.com/AngelicaProject/Aeri
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE.md).
+Copyright (C) 2026 pokeda. Harmonia is licensed under [AGPL-3.0-or-later](LICENSE.md), with the author attribution term in [NOTICE](NOTICE).
