@@ -178,7 +178,7 @@ public sealed unsafe class ExcelRowHooks : IDisposable
         var stringCount = 0;
         for (var i = 0; i < columnCount; i++)
         {
-            if (definitions[i].Type == 0)
+            if (definitions[i].ColumnType == ExcelColumnType.String)
                 stringCount++;
         }
 
@@ -188,7 +188,7 @@ public sealed unsafe class ExcelRowHooks : IDisposable
         Span<StringColumn> columns = stackalloc StringColumn[stringCount];
         for (int i = 0, n = 0; i < columnCount; i++)
         {
-            if (definitions[i].Type == 0)
+            if (definitions[i].ColumnType == ExcelColumnType.String)
                 columns[n++] = new StringColumn((ushort)i, definitions[i].Offset);
         }
 
@@ -263,14 +263,17 @@ public sealed unsafe class ExcelRowHooks : IDisposable
 
     private int Bind(ExcelSheet* sheet, ReadOnlySpan<StringColumn> columns)
     {
-        var name = (nint)sheet->SheetName.Value;
+        // The obsolete SheetName field is the pointer half of the name union;
+        // SheetNameVar.SheetName, which its message suggests, is the union's
+        // raw inline bytes, not the name.
+        var name = (nint)sheet->SheetNameVar.SheetNamePtr.Value;
         if (sheets.TryGetValue((nint)sheet, out var binding) &&
             binding.Name == name && binding.ColumnCount == sheet->ColumnCount && binding.Version == sheet->Version)
             return binding.PackSheet;
 
         var packSheet = name == 0
             ? -1
-            : runtime.BindSheet(sheet->SheetName.ToString(), sheet->Variant == ExcelVariant.MultiRow, columns);
+            : runtime.BindSheet(sheet->SheetNameVar.SheetNamePtr.ToString(), sheet->Variant == ExcelVariant.MultiRow, columns);
         sheets[(nint)sheet] = new SheetBinding(name, sheet->ColumnCount, sheet->Version, packSheet);
         return packSheet;
     }
