@@ -27,6 +27,13 @@ public sealed class Configuration : IPluginConfiguration
     public List<string> UntranslatedSheets { get; set; } = [];
 
     /// <summary>
+    /// Parts of sheets that hold both names and descriptions kept in the
+    /// game's language: "Item:names", "Status:descriptions"
+    /// (Packs/SheetParts). Applies at the next game start.
+    /// </summary>
+    public List<string> UntranslatedParts { get; set; } = [];
+
+    /// <summary>
     /// The player's changes to the sheet groups of the Coverage page: built-in
     /// groups changed or removed, and the player's own groups. Groups only
     /// choose sheets; what is kept is UntranslatedSheets.

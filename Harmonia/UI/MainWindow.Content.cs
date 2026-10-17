@@ -37,7 +37,7 @@ internal sealed partial class MainWindow
     private string? sheetListError;
     private SheetTree? sheetTree;
     private string? sheetTreeKept;
-    private List<SheetNode>? sheetRows;
+    private List<SheetRow>? sheetRows;
     private string? sheetRowsGroup;
     private bool questNamesMatched;
     private string? openLinkHovered;
@@ -152,7 +152,8 @@ internal sealed partial class MainWindow
         var button = ImGui.GetFrameHeight();
         var right = ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X;
         var showWidth = 150 * Ui.Scale;
-        var searchWidth = Math.Max(100 * Ui.Scale, right - ImGui.GetCursorPosX() - showWidth - button - (spacing * 2));
+        var columnsWidth = 170 * Ui.Scale;
+        var searchWidth = Math.Max(100 * Ui.Scale, right - ImGui.GetCursorPosX() - showWidth - columnsWidth - button - (spacing * 3));
 
         ImGui.SetNextItemWidth(searchWidth);
         if (ImGui.InputTextWithHint("##sheet_search", Lang.T("content.search"), ref sheetSearch, 256))
@@ -169,6 +170,8 @@ internal sealed partial class MainWindow
         }
 
         Ui.Tooltip(Lang.T("content.clear_search"));
+        ImGui.SameLine(0, spacing);
+        DrawColumnsFilter(columnsWidth);
         ImGui.SameLine(0, spacing);
         ImGui.SetNextItemWidth(Math.Max(80 * Ui.Scale, right - ImGui.GetCursorPosX()));
         using var combo = ImRaii.Combo("##sheet_show", ShowText(sheetShow));
@@ -205,7 +208,7 @@ internal sealed partial class MainWindow
         }
     }
 
-    private void DrawSheetTable(List<SheetNode> rows)
+    private void DrawSheetTable(List<SheetRow> rows)
     {
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV |
             ImGuiTableFlags.ScrollY | ImGuiTableFlags.Sortable | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoSavedSettings;
@@ -233,7 +236,12 @@ internal sealed partial class MainWindow
         while (clipper.Step())
         {
             for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
-                DrawSheetRow(rows[i]);
+            {
+                if (rows[i].Map is null)
+                    DrawSheetRow(rows[i].Node);
+                else
+                    DrawPartRow(rows[i]);
+            }
         }
 
         clipper.End();
@@ -244,15 +252,22 @@ internal sealed partial class MainWindow
     {
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
         ImGui.TableSetColumnIndex(0);
+        if (FilteredPart is { } part)
+        {
+            DrawPartHeader(part);
+            DrawHeaderTitles();
+            return;
+        }
+
         var all = sheetsShown > 0 && sheetsShownKept == sheetsShown;
         if (Ui.Checkbox("##keep_all", all, sheetsShownKept > 0 && !all))
         {
             foreach (var node in sheetTargets)
             {
                 if (all)
-                    SheetTree.Translate(configuration.UntranslatedSheets, node);
+                    TranslateNode(node);
                 else
-                    SheetTree.Keep(configuration.UntranslatedSheets, node);
+                    KeepNode(node);
             }
 
             save();
@@ -269,7 +284,11 @@ internal sealed partial class MainWindow
             _ => "content.check_all",
         };
         Ui.Tooltip(Lang.T(key, Number(sheetsShown)));
+        DrawHeaderTitles();
+    }
 
+    private static void DrawHeaderTitles()
+    {
         for (var column = 1; column < 3; column++)
         {
             ImGui.TableSetColumnIndex(column);
@@ -300,7 +319,9 @@ internal sealed partial class MainWindow
             ToggleKept(node);
         Ui.Tooltip(node.Covered
             ? Lang.T("content.covered", KeptFolder(node))
-            : node.State == KeepState.None ? Lang.T("content.check_keep") : Lang.T("content.check_translate"));
+            : node.State == KeepState.None ? Lang.T("content.check_keep")
+            : !node.IsFolder && node.KeptSheets == 0 ? Lang.T("content.check_partly", KeptParts(node.Path))
+            : Lang.T("content.check_translate"));
 
         ImGui.TableNextColumn();
         DrawSheetName(node);
@@ -337,16 +358,31 @@ internal sealed partial class MainWindow
             ImGui.SameLine();
             ImGui.TextUnformatted(node.Name);
             ImGui.SameLine();
-            ImGui.TextDisabled(node.State == KeepState.Some
+            ImGui.TextDisabled(node.State == KeepState.Some && node.KeptSheets > 0
                 ? Lang.T("content.folder_kept", Number(node.KeptSheets), Number(node.Sheets))
                 : Lang.T("content.folder_count", Number(node.Sheets)));
         }
         else
         {
-            ImGui.TreeNodeEx(node.Name, flags | ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.AllowItemOverlap);
+            // A sheet with names and descriptions opens on its arrow to a row
+            // for each; a click on its name still checks it.
+            var split = SheetParts.Of(node.Path) is { Split: true };
+            if (split)
+                ImGui.SetNextItemOpen(FilteredPart is not null || openFolders.Contains(node.Path), ImGuiCond.Always);
+            ImGui.TreeNodeEx(node.Name, flags | ImGuiTreeNodeFlags.AllowItemOverlap |
+                (split ? ImGuiTreeNodeFlags.OpenOnArrow : ImGuiTreeNodeFlags.Leaf));
             DrawSheetMenu(node);
-            if (ImGui.IsItemClicked())
+            var toggled = split && ImGui.IsItemToggledOpen();
+            if (toggled && FilteredPart is null)
+            {
+                if (!openFolders.Remove(node.Path))
+                    openFolders.Add(node.Path);
+                sheetRows = null;
+            }
+            else if (!toggled && ImGui.IsItemClicked())
+            {
                 ToggleKept(node);
+            }
             DrawSheetTooltip(node);
             var hovered = ImGui.IsItemHovered();
             if (previews.QuestName(node.Path) is { } quest)
@@ -371,10 +407,23 @@ internal sealed partial class MainWindow
     private void ToggleKept(SheetNode node)
     {
         if (node.State == KeepState.All)
-            SheetTree.Translate(configuration.UntranslatedSheets, node);
+            TranslateNode(node);
         else
-            SheetTree.Keep(configuration.UntranslatedSheets, node);
+            KeepNode(node);
         save();
+    }
+
+    // A node kept or translated whole drops the parts kept under it.
+    private void KeepNode(SheetNode node)
+    {
+        SheetTree.Keep(configuration.UntranslatedSheets, node);
+        SheetParts.Forget(configuration.UntranslatedParts, node.Entry);
+    }
+
+    private void TranslateNode(SheetNode node)
+    {
+        SheetTree.Translate(configuration.UntranslatedSheets, node);
+        SheetParts.Forget(configuration.UntranslatedParts, node.Entry);
     }
 
     // Folders open by themselves while searching, to show what matched inside
@@ -388,7 +437,7 @@ internal sealed partial class MainWindow
     }
 
     // The rows to show: the visible part of the tree, in order.
-    private List<SheetNode> SheetRows(SheetTree tree, SheetGroup? group)
+    private List<SheetRow> SheetRows(SheetTree tree, SheetGroup? group)
     {
         var search = sheetSearch.Trim();
         var scope = group is null ? null : new HashSet<string>(group.Entries, StringComparer.Ordinal);
@@ -403,7 +452,8 @@ internal sealed partial class MainWindow
         var matches = new Dictionary<SheetNode, int>();
         Count(tree.Root, scope is null);
 
-        var rows = new List<SheetNode>();
+        var rows = new List<SheetRow>();
+        partTargets = [];
         Add(tree.Root);
 
         sheetTargets = [];
@@ -423,6 +473,8 @@ internal sealed partial class MainWindow
             else
             {
                 count = inScope && Shows(node) ? 1 : 0;
+                if (count > 0 && FilteredPart is { } part && SheetParts.Of(node.Path) is { } map && map.Has(part))
+                    partTargets.Add(map);
                 if (inScope)
                 {
                     scopeTotals = (scopeTotals.Sheets + 1, scopeTotals.Kept + node.KeptSheets,
@@ -441,9 +493,11 @@ internal sealed partial class MainWindow
                 if (matches[child] == 0)
                     continue;
 
-                rows.Add(child);
+                rows.Add(new SheetRow(child));
                 if (child.IsFolder && (FolderForcedOpen(child) || openFolders.Contains(child.Path)))
                     Add(child);
+                else if (!child.IsFolder)
+                    AddPartRows(rows, child);
             }
         }
 
@@ -467,9 +521,10 @@ internal sealed partial class MainWindow
         bool Shows(SheetNode sheet) =>
             (search.Length == 0 || sheet.Path.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                 previews.QuestName(sheet.Path)?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) &&
+            ShowsColumns(sheet) &&
             sheetShow switch
             {
-                SheetShow.Kept => sheet.KeptSheets > 0,
+                SheetShow.Kept => sheet.State != KeepState.None,
                 SheetShow.Translated => sheet.KeptSheets == 0,
                 _ => true,
             };
@@ -508,12 +563,12 @@ internal sealed partial class MainWindow
     // Checks change from the group list and the tree; the tree follows them.
     private void RefreshSheetTree(SheetTree tree)
     {
-        var kept = string.Join('\n', configuration.UntranslatedSheets);
+        var kept = string.Join('\n', configuration.UntranslatedSheets.Concat(configuration.UntranslatedParts));
         if (string.Equals(kept, sheetTreeKept, StringComparison.Ordinal))
             return;
 
         sheetTreeKept = kept;
-        tree.Refresh(configuration.UntranslatedSheets);
+        tree.Refresh(configuration.UntranslatedSheets, SheetParts.SheetsOf(configuration.UntranslatedParts));
         sheetRows = null;
     }
 

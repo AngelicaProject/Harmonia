@@ -12,4 +12,11 @@
     <Reference Include="Lumina.Excel" HintPath="$(DalamudLibPath)Lumina.Excel.dll" />
     <Reference Include="Newtonsoft.Json" HintPath="$(DalamudLibPath)Newtonsoft.Json.dll" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The sheet groups and parts, checked with the profiles. -->
+    <Compile Include="..\..\Harmonia\Packs\SheetParts.cs" Link="Harmonia\SheetParts.cs" />
+    <Compile Include="..\..\Harmonia\Packs\SheetGroups.cs" Link="Harmonia\SheetGroups.cs" />
+    <Compile Include="..\..\Harmonia\Packs\SheetTree.cs" Link="Harmonia\SheetTree.cs" />
+    <Compile Include="..\..\Harmonia\Runtime\KeptRows.cs" Link="Harmonia\KeptRows.cs" />
+  </ItemGroup>
 </Project>

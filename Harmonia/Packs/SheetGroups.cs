@@ -46,7 +46,10 @@ public static class SheetGroups
         new("collections", ["Mount", "MountTransient", "Companion", "CompanionTransient", "Ornament", "OrnamentTransient", "Glasses", "GlassesStyle"]),
         new("achievements", ["Achievement", "Title"]),
         new("quest_names", ["Quest"]),
-        new("story", ["quest/*", "cut_scene/*", "custom/*"]),
+        new("story", ["quest/*"]),
+        new("cutscenes", ["cut_scene/*"]),
+        // NPC talk mixed with menu choices (the summoning bell, ...).
+        new("custom", ["custom/*"]),
     ];
 
     public static SheetGroup? BuiltIn(string key) =>

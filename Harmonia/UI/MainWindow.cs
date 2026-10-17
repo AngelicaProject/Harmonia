@@ -27,6 +27,7 @@ internal sealed record SessionInfo(
     GameFonts? Fonts,
     bool Reloaded,
     string SelectedAtStart,
+    // Sheets and parts ("Item:names") kept in the game's language.
     IReadOnlyList<string> UntranslatedAtStart,
     TextCaseHooks? CaseHooks,
     IReadOnlyList<string> CompatibilityAtStart,
@@ -210,7 +211,7 @@ internal sealed partial class MainWindow : Window, IDisposable
     private bool RestartPending =>
         session.IsRestartRequired ||
         !string.Equals(configuration.ActivePackId ?? string.Empty, info.LoadedPackId ?? string.Empty, StringComparison.Ordinal) ||
-        (info.LoadedPackId is not null && !configuration.UntranslatedSheets.Order(StringComparer.Ordinal)
+        (info.LoadedPackId is not null && !configuration.UntranslatedSheets.Concat(configuration.UntranslatedParts).Order(StringComparer.Ordinal)
             .SequenceEqual(info.UntranslatedAtStart.Order(StringComparer.Ordinal), StringComparer.Ordinal)) ||
         (info.LoadedPackId is not null && CompatibilityChanged);
 

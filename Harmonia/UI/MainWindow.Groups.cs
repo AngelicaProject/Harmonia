@@ -130,6 +130,7 @@ internal sealed partial class MainWindow
                 SheetTree.Translate(configuration.UntranslatedSheets, entry);
             else
                 SheetTree.Keep(configuration.UntranslatedSheets, entry);
+            SheetParts.Forget(configuration.UntranslatedParts, entry);
         }
 
         save();

@@ -45,6 +45,9 @@ public sealed class SheetNode
 
     public long KeptCells { get; private set; }
 
+    // Sheets that are not kept but have a part kept (SheetParts).
+    public int PartlyKeptSheets { get; private set; }
+
     // The node's own entry is in the list.
     public bool Listed { get; private set; }
 
@@ -54,7 +57,8 @@ public sealed class SheetNode
     // "quest/*" for a folder, the sheet name for a sheet.
     public string Entry => IsFolder ? Path + "*" : Path;
 
-    public KeepState State => KeptSheets == 0 ? KeepState.None : KeptSheets == Sheets ? KeepState.All : KeepState.Some;
+    public KeepState State =>
+        KeptSheets == Sheets && Sheets > 0 ? KeepState.All : KeptSheets > 0 || PartlyKeptSheets > 0 ? KeepState.Some : KeepState.None;
 
     internal List<SheetNode> MutableChildren => children;
 
@@ -64,12 +68,13 @@ public sealed class SheetNode
         Cells = cells;
     }
 
-    internal void SetKept(bool listed, bool covered, int sheets, long cells)
+    internal void SetKept(bool listed, bool covered, int sheets, long cells, int partly)
     {
         Listed = listed;
         Covered = covered;
         KeptSheets = sheets;
         KeptCells = cells;
+        PartlyKeptSheets = partly;
     }
 }
 
@@ -131,9 +136,10 @@ public sealed class SheetTree
 
     public void Sort(SheetSort by, bool descending) => Sort(Root, by, descending);
 
-    // Recomputes what is kept from the configured entries.
-    public void Refresh(IEnumerable<string> entries) =>
-        Refresh(Root, new HashSet<string>(entries, StringComparer.Ordinal), false);
+    // Recomputes what is kept from the configured entries and the sheets with
+    // a part kept.
+    public void Refresh(IEnumerable<string> entries, IEnumerable<string>? partly = null) =>
+        Refresh(Root, new HashSet<string>(entries, StringComparer.Ordinal), new HashSet<string>(partly ?? [], StringComparer.Ordinal), false);
 
     // Keeps the node in the game's language: its own entry replaces the
     // entries under it.
@@ -206,19 +212,20 @@ public sealed class SheetTree
         node.SetSize(node.Children.Sum(static c => c.Sheets), node.Children.Sum(static c => c.Cells));
     }
 
-    private static void Refresh(SheetNode node, HashSet<string> entries, bool covered)
+    private static void Refresh(SheetNode node, HashSet<string> entries, HashSet<string> partly, bool covered)
     {
         var listed = node.Depth >= 0 && entries.Contains(node.Entry);
         if (!node.IsFolder)
         {
             var kept = covered || listed;
-            node.SetKept(listed, covered, kept ? 1 : 0, kept ? node.Cells : 0);
+            node.SetKept(listed, covered, kept ? 1 : 0, kept ? node.Cells : 0, !kept && partly.Contains(node.Path) ? 1 : 0);
             return;
         }
 
         foreach (var child in node.Children)
-            Refresh(child, entries, covered || listed);
-        node.SetKept(listed, covered, node.Children.Sum(static c => c.KeptSheets), node.Children.Sum(static c => c.KeptCells));
+            Refresh(child, entries, partly, covered || listed);
+        node.SetKept(listed, covered, node.Children.Sum(static c => c.KeptSheets), node.Children.Sum(static c => c.KeptCells),
+            node.Children.Sum(static c => c.PartlyKeptSheets));
     }
 
     // Folders first, each level on its own.

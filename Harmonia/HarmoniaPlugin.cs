@@ -173,6 +173,13 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                     }
                 }
 
+                // The player's parts are kept whatever happened to compatibility.
+                if (configuration.UntranslatedParts.Count > 0)
+                {
+                    keep ??= new KeptRows();
+                    SheetParts.AddTo(keep, configuration.UntranslatedParts);
+                }
+
                 runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
                     new SheetFilter(configuration.UntranslatedSheets), keep, sayPhrases is null ? null : sayPhrases.Rows);
                 try
@@ -253,7 +260,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets, say, sayHook, sayError),
+                [.. configuration.UntranslatedSheets, .. configuration.UntranslatedParts], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets, say, sayHook, sayError),
             pluginInterface.UiBuilder,
             textures,
             () => RelevantProfiles(pluginInterface, pluginConfigs, configuration.TranslatePluginData && SharedSheets.Available),

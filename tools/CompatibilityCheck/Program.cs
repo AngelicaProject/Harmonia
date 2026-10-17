@@ -1,6 +1,8 @@
 // Checks the compatibility profiles in Harmonia/Assets/Compatibility against
 // an installed game: every sheet, row, and column they name must exist, and
-// kept columns must be String columns. Run it after every game patch:
+// kept columns must be String columns. The same for the built-in sheet groups
+// and the names and descriptions of Packs/SheetParts. Run it after every game
+// patch:
 //   dotnet run --project tools/CompatibilityCheck -- "<game>/game/sqpack"
 // Exit code 1 lists what no longer exists; nothing breaks at runtime then
 // (Harmonia ignores it), but the plugin may stop finding that text.
@@ -8,6 +10,7 @@ using Lumina;
 using Lumina.Data;
 using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
+using Harmonia.Packs;
 using Newtonsoft.Json.Linq;
 
 if (args.Length < 1)
@@ -53,7 +56,24 @@ foreach (var file in Directory.GetFiles(profilesDir, "*.json").Order(StringCompa
     }
 }
 
-Console.WriteLine(problems == 0 ? "All profiles match the game data." : $"{problems} problem(s).");
+foreach (var group in SheetGroups.All)
+{
+    foreach (var entry in group.Entries.Where(static e => !SheetFilter.IsFolder(e)))
+        Sheet("groups/" + group.Key, entry);
+}
+
+foreach (var map in SheetParts.All)
+{
+    if (Sheet("parts", map.Sheet) is not { } raw)
+        continue;
+    foreach (var column in map.Names.Concat(map.Descriptions))
+    {
+        if (column >= raw.Columns.Count || raw.Columns[(int)column].Type != ExcelColumnDataType.String)
+            Problem("parts", $"{map.Sheet}: column {column} is not a String column");
+    }
+}
+
+Console.WriteLine(problems == 0 ? "All profiles, groups, and parts match the game data." : $"{problems} problem(s).");
 return problems == 0 ? 0 : 1;
 
 RawExcelSheet? Sheet(string profile, string sheet)
