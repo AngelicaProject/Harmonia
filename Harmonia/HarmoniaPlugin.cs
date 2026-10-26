@@ -173,12 +173,11 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                     }
                 }
 
-                // The player's parts are kept whatever happened to compatibility.
-                if (configuration.UntranslatedParts.Count > 0)
-                {
-                    keep ??= new KeptRows();
-                    SheetParts.AddTo(keep, configuration.UntranslatedParts);
-                }
+                // The player's parts and the names the game sends to the
+                // server are kept whatever happened to compatibility.
+                keep ??= new KeptRows();
+                SheetParts.AddTo(keep, configuration.UntranslatedParts);
+                ServerNames.AddTo(keep);
 
                 runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
                     new SheetFilter(configuration.UntranslatedSheets), keep, sayPhrases is null ? null : sayPhrases.Rows);

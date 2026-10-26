@@ -18,5 +18,6 @@
     <Compile Include="..\..\Harmonia\Packs\SheetGroups.cs" Link="Harmonia\SheetGroups.cs" />
     <Compile Include="..\..\Harmonia\Packs\SheetTree.cs" Link="Harmonia\SheetTree.cs" />
     <Compile Include="..\..\Harmonia\Runtime\KeptRows.cs" Link="Harmonia\KeptRows.cs" />
+    <Compile Include="..\..\Harmonia\Runtime\ServerNames.cs" Link="Harmonia\ServerNames.cs" />
   </ItemGroup>
 </Project>

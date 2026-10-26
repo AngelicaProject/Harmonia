@@ -11,8 +11,9 @@ public enum CellDecision
     // was made for; the original text stays.
     SourceChanged,
 
-    // Another plugin looks for the original text (KeptRows), or the game
-    // compares what the player says with it (a quest's Say phrase).
+    // Another plugin looks for the original text or the game sends it to the
+    // server (KeptRows), or the game compares what the player says with it (a
+    // quest's Say phrase).
     Kept,
 }
 

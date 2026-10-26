@@ -1,7 +1,8 @@
 namespace Harmonia.Runtime;
 
 // Text that stays in the game's language this session although the pack
-// translates it: what other plugins compare with what the game shows. A sheet
+// translates it: what other plugins compare with what the game shows, the
+// player's parts, and the names the game sends to the server. A sheet
 // kept whole binds like a sheet the player keeps untranslated; a row is kept
 // with every column; columns (by the game's column index) are kept in the
 // listed rows, or in every row.
