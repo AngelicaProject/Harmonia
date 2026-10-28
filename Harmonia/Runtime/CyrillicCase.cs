@@ -92,6 +92,36 @@ public static class CyrillicCase
         }
     }
 
+    // The Keybound Brawler typing comparison: the game folds Latin case and
+    // diacritics ("É" weighs as "e"), Cyrillic it compares byte by byte. Every
+    // letter becomes lowercase and "ё" becomes "е", the Cyrillic counterpart
+    // of "é" and "e". Both are two bytes, so the length never changes.
+    public static void FoldForTyping(Span<byte> text)
+    {
+        ToLower(text);
+        var i = 0;
+        while (i < text.Length)
+        {
+            var b = text[i];
+            if (b == 0)
+                return;
+            if (b == PayloadStart)
+            {
+                if (!TrySkipPayload(text, ref i))
+                    return;
+                continue;
+            }
+
+            if (b == 0xD1 && i + 1 < text.Length && text[i + 1] == 0x91)
+            {
+                text[i] = 0xD0;
+                text[i + 1] = 0xB5;
+            }
+
+            i += Utf8Length(b);
+        }
+    }
+
     private static void Upper(Span<byte> text, int i)
     {
         if (i + 1 >= text.Length)

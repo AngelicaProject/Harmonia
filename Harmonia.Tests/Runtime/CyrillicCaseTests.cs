@@ -64,6 +64,29 @@ public sealed class CyrillicCaseTests
         Assert.Equal(" МИР", Encoding.UTF8.GetString(text[6..]));
     }
 
+    [Theory]
+    [InlineData("Дай эликсир", "дай эликсир")]
+    [InlineData("ВПЕРЁД", "вперед")]
+    [InlineData("Ёж и ёлка", "еж и елка")]
+    [InlineData("СОЛДАТ Deepground", "солдат Deepground")]
+    [InlineData("рука-пушка, 5.", "рука-пушка, 5.")]
+    public void Typing_words_fold_case_and_yo(string text, string expected)
+    {
+        var bytes = Encoding.UTF8.GetBytes(text);
+        CyrillicCase.FoldForTyping(bytes);
+        Assert.Equal(expected, Encoding.UTF8.GetString(bytes));
+    }
+
+    [Fact]
+    public void Typing_word_and_its_translation_fold_to_the_same_text()
+    {
+        var shown = Encoding.UTF8.GetBytes("Вперёд");
+        var typed = Encoding.UTF8.GetBytes("вперед");
+        CyrillicCase.FoldForTyping(shown);
+        CyrillicCase.FoldForTyping(typed);
+        Assert.Equal(shown, typed);
+    }
+
     [Fact]
     public void Cyrillic_languages_are_recognized()
     {
