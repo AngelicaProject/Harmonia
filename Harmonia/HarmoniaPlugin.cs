@@ -38,6 +38,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly ExcelRowHooks? hooks;
     private readonly TextCaseHooks? caseHooks;
     private readonly SayHook? sayHook;
+    private readonly OutgoingChatHook? outgoingChatHook;
+    private readonly string? outgoingChatError;
     private readonly GameFonts? fonts;
     private readonly NameDictionary? dictionary;
     private readonly SharedSheets? sharedSheets;
@@ -223,6 +225,19 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
         originals = new OriginalSheets(dataManager, sharedSheets is not null);
 
+        if (hooks is not null)
+        {
+            try
+            {
+                outgoingChatHook = new OutgoingChatHook(interop, scanner, originals, log);
+            }
+            catch (Exception ex)
+            {
+                outgoingChatError = ex.Message;
+                log.Error("The outgoing chat hook could not be installed; links keep the shown names.", ex);
+            }
+        }
+
         // Without the hooks the game shows no translation to look up.
         if (hooks is not null && runtime is not null)
             dictionary = new NameDictionary(originals, runtime, configuration, log);
@@ -259,7 +274,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets, .. configuration.UntranslatedParts], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets, say, sayHook, sayError),
+                [.. configuration.UntranslatedSheets, .. configuration.UntranslatedParts], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets, say, sayHook, sayError, outgoingChatHook, outgoingChatError),
             pluginInterface.UiBuilder,
             textures,
             () => RelevantProfiles(pluginInterface, pluginConfigs, configuration.TranslatePluginData && SharedSheets.Available),
@@ -311,6 +326,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
         // Waits for a running build: it reads translations from the pack.
         dictionary?.Dispose();
+        outgoingChatHook?.Dispose();
         originals.Dispose();
 
         // Other plugins read the original again; the pack is still mapped.
