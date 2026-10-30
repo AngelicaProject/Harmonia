@@ -219,6 +219,9 @@ internal sealed partial class MainWindow
         if (info.Hooks is { } hooks)
             text.AppendLine(CultureInfo.InvariantCulture, $"StoreRow hooks: {hooks.HashTableAddress:X}, {hooks.RingBufferAddress:X}; errors {hooks.Errors}");
         text.AppendLine(CultureInfo.InvariantCulture, $"Letter case hooks: {(info.CaseHooks is { } caseHooks ? $"on, typing words {(caseHooks.TypingHook ? "on" : "off")}, errors {caseHooks.Errors}" : "off")}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"Outgoing chat: {(info.OutgoingChatHook is { } outgoing ? $"hook {outgoing.Address:X}, lines changed {outgoing.Replaced}, errors {outgoing.Errors}" : "off")}");
+        if (info.OutgoingChatError is { } outgoingError)
+            text.AppendLine("Outgoing chat error: " + outgoingError);
         if (info.SayError is not null)
             text.AppendLine(CultureInfo.InvariantCulture, $"Say phrases error: {info.SayError}");
         if (info.SayPhrases is { } sayPhrases && info.SayHook is { } sayHook)

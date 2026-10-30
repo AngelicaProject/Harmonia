@@ -37,7 +37,9 @@ internal sealed record SessionInfo(
     SharedSheets? SharedSheets,
     SayPhrases? SayPhrases,
     SayHook? SayHook,
-    string? SayError);
+    string? SayError,
+    OutgoingChatHook? OutgoingChatHook,
+    string? OutgoingChatError);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {
