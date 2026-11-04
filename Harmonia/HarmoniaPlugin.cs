@@ -40,6 +40,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly SayHook? sayHook;
     private readonly OutgoingChatHook? outgoingChatHook;
     private readonly string? outgoingChatError;
+    private readonly ActionNameHook? actionNameHook;
+    private readonly string? actionNameError;
     private readonly GameFonts? fonts;
     private readonly NameDictionary? dictionary;
     private readonly SharedSheets? sharedSheets;
@@ -229,6 +231,16 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         {
             try
             {
+                actionNameHook = new ActionNameHook(interop, scanner, originals, runtime!, log);
+            }
+            catch (Exception ex)
+            {
+                actionNameError = ex.Message;
+                log.Error("The command action name hook could not be installed; commands require the shown names.", ex);
+            }
+
+            try
+            {
                 outgoingChatHook = new OutgoingChatHook(interop, scanner, originals, log);
             }
             catch (Exception ex)
@@ -274,7 +286,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             feedState,
             session,
             new SessionInfo(runtime?.Info.PackId, runtime, hooks, packError, hookError, pluginVersion, fonts, reloaded, configuration.ActivePackId ?? string.Empty,
-                [.. configuration.UntranslatedSheets, .. configuration.UntranslatedParts], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets, say, sayHook, sayError, outgoingChatHook, outgoingChatError),
+                [.. configuration.UntranslatedSheets, .. configuration.UntranslatedParts], caseHooks, [.. compatibility.Select(static p => p.Plugin)], compatibilityError, dictionary, lookup, sharedSheets, say, sayHook, sayError, outgoingChatHook, outgoingChatError, actionNameHook, actionNameError),
             pluginInterface.UiBuilder,
             textures,
             () => RelevantProfiles(pluginInterface, pluginConfigs, configuration.TranslatePluginData && SharedSheets.Available),
@@ -326,6 +338,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
         // Waits for a running build: it reads translations from the pack.
         dictionary?.Dispose();
+        actionNameHook?.Dispose();
         outgoingChatHook?.Dispose();
         originals.Dispose();
 

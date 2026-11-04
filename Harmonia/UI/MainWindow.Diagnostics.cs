@@ -222,6 +222,9 @@ internal sealed partial class MainWindow
         text.AppendLine(CultureInfo.InvariantCulture, $"Outgoing chat: {(info.OutgoingChatHook is { } outgoing ? $"hook {outgoing.Address:X}, lines changed {outgoing.Replaced}, errors {outgoing.Errors}" : "off")}");
         if (info.OutgoingChatError is { } outgoingError)
             text.AppendLine("Outgoing chat error: " + outgoingError);
+        text.AppendLine(CultureInfo.InvariantCulture, $"Command action names: {(info.ActionNameHook is { } actionNames ? $"hook {actionNames.Address:X}, names resolved {actionNames.Replaced}, errors {actionNames.Errors}" : "off")}");
+        if (info.ActionNameError is { } actionNameError)
+            text.AppendLine("Command action names error: " + actionNameError);
         if (info.SayError is not null)
             text.AppendLine(CultureInfo.InvariantCulture, $"Say phrases error: {info.SayError}");
         if (info.SayPhrases is { } sayPhrases && info.SayHook is { } sayHook)

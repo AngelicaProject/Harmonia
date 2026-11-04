@@ -39,7 +39,9 @@ internal sealed record SessionInfo(
     SayHook? SayHook,
     string? SayError,
     OutgoingChatHook? OutgoingChatHook,
-    string? OutgoingChatError);
+    string? OutgoingChatError,
+    ActionNameHook? ActionNameHook,
+    string? ActionNameError);
 
 internal sealed partial class MainWindow : Window, IDisposable
 {
