@@ -58,7 +58,6 @@ internal sealed partial class MainWindow
         Ui.Heading(headingFont, Lang.T("nav.content"));
         Ui.Hint(Lang.T("content.intro"));
         Ui.Gap(4);
-        DrawCompatibility();
 
         LoadSheetTree();
         if (sheetTree is not null)

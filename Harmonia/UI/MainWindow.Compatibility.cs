@@ -16,6 +16,14 @@ internal sealed partial class MainWindow
     private readonly Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles;
     private IReadOnlyList<CompatibilityProfile> installedProfiles = [];
     private DateTime installedCheckedAt = DateTime.MinValue;
+    private bool openCoverageOptions;
+
+    private static void DrawCoverageHelp(string text)
+    {
+        ImGui.SameLine();
+        Ui.Icon(FontAwesomeIcon.QuestionCircle, Ui.Muted);
+        Ui.Tooltip(text);
+    }
 
     // Profiles of the plugins installed now that keep text with their current
     // settings; plugins and their settings change while the game runs.
@@ -42,13 +50,14 @@ internal sealed partial class MainWindow
             .Order(StringComparer.OrdinalIgnoreCase)
             .SequenceEqual(info.CompatibilityAtStart.Order(StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase);
 
-    // Experimental: instead of keeping text for each plugin, plugins are
-    // given the translation where they read the game's text.
-    private void DrawSharedSheets()
+    private void DrawTranslationSettings()
     {
         using (Ui.BeginCard("shared_sheets"))
         {
-            ImGui.TextDisabled(Lang.T("compat.shared_title"));
+            ImGui.TextDisabled(Lang.T("settings.section_translation"));
+            if (openCoverageOptions)
+                ImGui.SetScrollHereY(0);
+            Ui.Hint(Lang.T("settings.translation_restart"));
             Ui.Gap(2);
             var on = configuration.TranslatePluginData;
             if (ImGui.Checkbox(Lang.T("compat.shared"), ref on))
@@ -57,16 +66,19 @@ internal sealed partial class MainWindow
                 save();
             }
 
-            Ui.Hint(Lang.T("compat.shared_hint"));
+            var sharedHelp = Lang.T("compat.shared_hint");
             if (info.SharedSheets is { } shared)
             {
-                Ui.Gap(2);
-                Ui.Hint(shared.Error is not null
+                sharedHelp += "\n\n" + (shared.Error is not null
                     ? Lang.T("compat.shared_failed")
                     : shared.Completed.IsCompleted
                         ? Lang.T("compat.shared_done", shared.Sheets, shared.Cells, shared.Elapsed.TotalSeconds.ToString("F1"))
                         : Lang.T("compat.shared_running", shared.Sheets));
             }
+            DrawCoverageHelp(sharedHelp);
+            Hinted(Lang.T("settings.plugin_text_hint"));
+            if (info.SharedSheets?.Error is not null)
+                Ui.Colored(Ui.Warn, Lang.T("compat.shared_failed"));
 
             Ui.Gap(4);
             var say = configuration.OriginalSayPhrases;
@@ -76,19 +88,21 @@ internal sealed partial class MainWindow
                 save();
             }
 
-            Ui.Hint(Lang.T("say.hint"));
+            var sayHelp = Lang.T("say.hint");
             if (info.SayError is not null)
             {
-                Ui.Gap(2);
-                Ui.Hint(Lang.T("say.failed"));
+                sayHelp += "\n\n" + Lang.T("say.failed");
             }
             else if (info.SayPhrases is { } phrases && info.SayHook is { } sayHook)
             {
-                Ui.Gap(2);
-                Ui.Hint(Lang.T("say.status", phrases.Quests.Count, sayHook.Replaced));
+                sayHelp += "\n\n" + Lang.T("say.status", phrases.Quests.Count, sayHook.Replaced);
                 if (phrases.Skipped.Count != 0)
-                    Ui.Hint(Lang.T("say.skipped", phrases.Skipped.Count));
+                    sayHelp += "\n" + Lang.T("say.skipped", phrases.Skipped.Count);
             }
+            DrawCoverageHelp(sayHelp);
+            Hinted(Lang.T("settings.say_hint"));
+            if (info.SayError is not null)
+                Ui.Colored(Ui.Warn, Lang.T("say.failed"));
         }
 
         Ui.Gap(4);
@@ -96,15 +110,21 @@ internal sealed partial class MainWindow
 
     private void DrawCompatibility()
     {
-        DrawSharedSheets();
         var profiles = InstalledProfiles;
         if (profiles.Count == 0)
+        {
+            openCoverageOptions = false;
+            return;
+        }
+
+        if (openCoverageOptions)
+            ImGui.SetNextItemOpen(true);
+        openCoverageOptions = false;
+        if (!ImGui.CollapsingHeader(Lang.T("compat.title") + "##compatibility"))
             return;
 
         using (Ui.BeginCard("compatibility"))
         {
-            ImGui.TextDisabled(Lang.T("compat.title"));
-            Ui.Gap(2);
             Ui.Hint(Lang.T("compat.intro"));
             Ui.Gap(2);
             foreach (var profile in profiles)
@@ -142,7 +162,10 @@ internal sealed partial class MainWindow
             using (ImRaii.TextWrapPos(card.Right))
                 ImGui.TextWrapped(Lang.T("notice.compatibility", string.Join(", ", names)));
             if (Ui.LinkButton(FontAwesomeIcon.SlidersH, Lang.T("notice.compatibility_open")))
-                page = Page.Content;
+            {
+                page = Page.Settings;
+                openCoverageOptions = true;
+            }
         }
     }
 }
