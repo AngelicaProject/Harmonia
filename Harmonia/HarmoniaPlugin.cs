@@ -73,6 +73,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         var log = new HarmoniaLog(pluginLog);
 
         configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        if (configuration.ApplyStableTranslationDefaults())
+            Save();
 
         var pluginDir = pluginInterface.AssemblyLocation.Directory!.FullName;
         Lang.Initialize(Path.Combine(pluginDir, LocalizationDirName), configuration.Language, warning => pluginLog.Warning(warning));

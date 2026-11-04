@@ -36,6 +36,9 @@ internal sealed partial class MainWindow
             }
         }
 
+        DrawTranslationSettings();
+        DrawCompatibility();
+
         using (var card = Ui.BeginCard("updates"))
         {
             ImGui.TextDisabled(Lang.T("settings.section_updates"));

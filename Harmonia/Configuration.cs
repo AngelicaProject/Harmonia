@@ -48,19 +48,35 @@ public sealed class Configuration : IPluginConfiguration
     public List<string> DisabledCompatibility { get; set; } = [];
 
     /// <summary>
-    /// Experimental: other plugins read the translation from the game files
+    /// Other plugins read the translation from the game files
     /// (Game/SharedSheets), so they find the text the game shows without a
     /// compatibility profile. Applies at the next game start.
     /// </summary>
-    public bool TranslatePluginData { get; set; }
+    public bool TranslatePluginData { get; set; } = true;
 
     /// <summary>
-    /// Experimental: the phrases quests ask the player to say stay in the
+    /// The phrases quests ask the player to say stay in the
     /// game's language, and a phrase typed in the translation is said in the
     /// game's language (Game/SayPhrases, Game/SayHook). Applies at the next
     /// game start.
     /// </summary>
-    public bool OriginalSayPhrases { get; set; }
+    public bool OriginalSayPhrases { get; set; } = true;
+
+    /// <summary>Whether this configuration adopted the stable translation defaults.</summary>
+    public bool StableTranslationDefaultsApplied { get; set; }
+
+    // The old experimental defaults were false. Adopt the stable defaults
+    // once, then preserve any choices the player makes afterwards.
+    public bool ApplyStableTranslationDefaults()
+    {
+        if (StableTranslationDefaultsApplied)
+            return false;
+
+        TranslatePluginData = true;
+        OriginalSayPhrases = true;
+        StableTranslationDefaultsApplied = true;
+        return true;
+    }
 
     /// <summary>
     /// Game languages ("ja", "en", "de", "fr") the name dictionary shows next
