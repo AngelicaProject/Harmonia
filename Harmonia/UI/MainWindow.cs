@@ -48,7 +48,6 @@ internal sealed partial class MainWindow : Window, IDisposable
     private enum Page
     {
         Translations,
-        Dictionary,
         Content,
         Settings,
         Diagnostics,
@@ -67,8 +66,11 @@ internal sealed partial class MainWindow : Window, IDisposable
     private readonly IFontHandle largeIconFont;
     private readonly ITextureProvider textures;
     private readonly SheetPreviews previews;
+    private readonly DictionaryKeyboard dictionaryKeyboard;
+    private readonly Action arrangeDictionary;
 
     private Page page = Page.Translations;
+    private bool selectDictionarySettings;
 
     public MainWindow(
         Configuration configuration,
@@ -82,7 +84,9 @@ internal sealed partial class MainWindow : Window, IDisposable
         IUiBuilder uiBuilder,
         ITextureProvider textures,
         Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles,
-        SheetPreviews previews)
+        SheetPreviews previews,
+        DictionaryKeyboard dictionaryKeyboard,
+        Action arrangeDictionary)
         : base("Harmonia###harmonia_main")
     {
         this.configuration = configuration;
@@ -96,6 +100,8 @@ internal sealed partial class MainWindow : Window, IDisposable
         this.relevantProfiles = relevantProfiles;
         this.textures = textures;
         this.previews = previews;
+        this.dictionaryKeyboard = dictionaryKeyboard;
+        this.arrangeDictionary = arrangeDictionary;
         headingFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(MathF.Round(UiBuilder.DefaultFontSizePx * 1.25f))));
         largeIconFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = MathF.Round(UiBuilder.DefaultFontSizePx * 1.6f) })));
 
@@ -108,19 +114,32 @@ internal sealed partial class MainWindow : Window, IDisposable
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
+    public void OpenDictionarySettings()
+    {
+        IsOpen = true;
+        page = Page.Settings;
+        selectDictionarySettings = true;
+        BringToFront();
+    }
+
     public void Dispose()
     {
+        dictionaryKeyboard.CancelRecording();
         pendingImport?.Dispose();
         pendingImport = null;
-        dictionaryCancel?.Cancel();
-        dictionaryCancel?.Dispose();
         previews.Dispose();
         headingFont.Dispose();
         largeIconFont.Dispose();
     }
 
+    public override void PreDraw() => RespectCloseHotkey = !dictionaryKeyboard.ShortcutOwnsEscape;
+
+    public override void OnClose() => dictionaryKeyboard.CancelRecording();
+
     public override void Draw()
     {
+        if (page != Page.Settings)
+            dictionaryKeyboard.CancelRecording();
         DrawNavigation();
         ImGui.SameLine();
 
@@ -133,9 +152,6 @@ internal sealed partial class MainWindow : Window, IDisposable
                 {
                     case Page.Translations:
                         DrawTranslations();
-                        break;
-                    case Page.Dictionary:
-                        DrawDictionary();
                         break;
                     case Page.Content:
                         DrawContent();
@@ -165,8 +181,6 @@ internal sealed partial class MainWindow : Window, IDisposable
             return;
 
         NavItem(Page.Translations, FontAwesomeIcon.Language, Lang.T("nav.translations"), feedState.AvailableCount > 0);
-        if (info.Dictionary is not null)
-            NavItem(Page.Dictionary, FontAwesomeIcon.Book, Lang.T("nav.dictionary"), false);
         NavItem(Page.Content, FontAwesomeIcon.ListUl, Lang.T("nav.content"), false);
         NavItem(Page.Settings, FontAwesomeIcon.Cog, Lang.T("nav.settings"), false);
         NavItem(Page.Diagnostics, FontAwesomeIcon.Heartbeat, Lang.T("nav.diagnostics"), HasProblem);
@@ -185,7 +199,9 @@ internal sealed partial class MainWindow : Window, IDisposable
         var height = ImGui.GetTextLineHeight() + (12 * Ui.Scale);
         var pos = ImGui.GetCursorPos();
         if (ImGui.Selectable("##nav_" + target, page == target, ImGuiSelectableFlags.None, new Vector2(0, height)))
+        {
             page = target;
+        }
         var after = ImGui.GetCursorPos();
 
         var textY = pos.Y + ((height - ImGui.GetTextLineHeight()) / 2);

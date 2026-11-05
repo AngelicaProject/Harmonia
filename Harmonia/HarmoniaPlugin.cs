@@ -49,6 +49,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
     private readonly NameLookup? lookup;
     private readonly WindowSystem windows = new("Harmonia");
     private readonly MainWindow mainWindow;
+    private readonly DictionaryWindow? dictionaryPalette;
+    private readonly DictionaryKeyboard dictionaryKeyboard;
     private readonly RestartWindow restartWindow;
 
     public HarmoniaPlugin(
@@ -63,7 +65,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         IClientState clientState,
         IDataManager dataManager,
         IContextMenu contextMenu,
-        ITextureProvider textures)
+        ITextureProvider textures,
+        IKeyState keyState)
     {
         this.pluginInterface = pluginInterface;
         this.framework = framework;
@@ -73,6 +76,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         var log = new HarmoniaLog(pluginLog);
 
         configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        dictionaryKeyboard = new DictionaryKeyboard(keyState, configuration, saveShortcut: Save, gameTextInputActive: IsGameTextInputActive);
         if (configuration.ApplyStableTranslationDefaults())
             Save();
 
@@ -279,6 +283,12 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         if (dictionary is not null)
             lookup = new NameLookup(dictionary, commands, chat, contextMenu, framework, notifications, log, OpenDictionary);
 
+        if (dictionary is not null && lookup is not null)
+        {
+            dictionaryPalette = new DictionaryWindow(dictionary, lookup, textures, configuration, Save, dictionaryKeyboard,
+                OpenDictionarySettings);
+        }
+
         mainWindow = new MainWindow(
             configuration,
             Save,
@@ -292,19 +302,22 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             pluginInterface.UiBuilder,
             textures,
             () => RelevantProfiles(pluginInterface, pluginConfigs, configuration.TranslatePluginData && SharedSheets.Available),
-            new SheetPreviews(originals, log));
+            new SheetPreviews(originals, log), dictionaryKeyboard, () => dictionaryPalette?.BeginArrange());
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
             IsOpen = reloaded,
         };
         windows.AddWindow(mainWindow);
+        if (dictionaryPalette is not null)
+            windows.AddWindow(dictionaryPalette);
         windows.AddWindow(restartWindow);
 
         commands.AddHandler(CommandName, new CommandInfo((_, _) => mainWindow.Toggle())
         {
             HelpMessage = Lang.T("command.help"),
         });
-        pluginInterface.UiBuilder.Draw += windows.Draw;
+        pluginInterface.UiBuilder.Draw += Draw;
+        framework.Update += OnDictionaryInput;
         pluginInterface.UiBuilder.OpenMainUi += mainWindow.Toggle;
         pluginInterface.UiBuilder.OpenConfigUi += mainWindow.Toggle;
         framework.Update += OnFrameworkUpdate;
@@ -327,10 +340,12 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         }
 
         framework.Update -= OnFrameworkUpdate;
-        pluginInterface.UiBuilder.Draw -= windows.Draw;
+        pluginInterface.UiBuilder.Draw -= Draw;
+        framework.Update -= OnDictionaryInput;
         pluginInterface.UiBuilder.OpenMainUi -= mainWindow.Toggle;
         pluginInterface.UiBuilder.OpenConfigUi -= mainWindow.Toggle;
         windows.RemoveAllWindows();
+        dictionaryPalette?.Dispose();
         mainWindow.Dispose();
         commands.RemoveHandler(CommandName);
         lookup?.Dispose();
@@ -357,7 +372,29 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
     private void Save() => pluginInterface.SavePluginConfig(configuration);
 
-    private void OpenDictionary() => mainWindow.OpenDictionary();
+    private static unsafe bool IsGameTextInputActive()
+    {
+        var module = FFXIVClientStructs.FFXIV.Client.UI.RaptureAtkModule.Instance();
+        return module != null && module->IsTextInputActive();
+    }
+
+    private void OpenDictionarySettings() => mainWindow.OpenDictionarySettings();
+
+    private void OpenDictionary() => dictionaryPalette?.TogglePalette();
+
+    private void Draw()
+    {
+        if (dictionaryPalette is not null && dictionaryKeyboard.BeginFrame())
+            dictionaryPalette?.TogglePalette();
+        windows.Draw();
+        dictionaryKeyboard.EndFrame();
+    }
+
+    private void OnDictionaryInput(IFramework _)
+    {
+        dictionaryKeyboard.PollShortcut(dictionaryPalette is not null);
+        dictionaryKeyboard.SuppressGameKeys();
+    }
 
     // Profiles of installed plugins that keep text with their current
     // settings; none when that cannot be told (the window asks every few

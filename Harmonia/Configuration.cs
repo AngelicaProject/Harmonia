@@ -84,6 +84,24 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public List<string> DictionaryLanguages { get; set; } = [];
 
+    /// <summary>Last query in the standalone dictionary window.</summary>
+    public string DictionaryQuery { get; set; } = string.Empty;
+
+    /// <summary>Enable the recorded keyboard shortcut for the dictionary overlay.</summary>
+    public bool DictionaryShortcutEnabled { get; set; } = true;
+
+    public string DictionaryShortcutKey { get; set; } = "D";
+
+    /// <summary>Modifier bits: Ctrl=1, Shift=2, Alt=4, Win=8. Defaults preserve older Ctrl+Shift bindings.</summary>
+    public int DictionaryShortcutModifiers { get; set; } = 3;
+
+    public bool DictionaryTabFocusSearch { get; set; }
+    public bool DictionaryClearSearchOnOpen { get; set; }
+
+    public bool DictionaryCustomPosition { get; set; }
+    public float DictionaryPositionX { get; set; } = 0.5f;
+    public float DictionaryPositionY { get; set; } = 0.14f;
+
     /// <summary>Feed URLs polled for new releases.</summary>
     public List<string> UpdateFeedUrls { get; set; } = [];
 
