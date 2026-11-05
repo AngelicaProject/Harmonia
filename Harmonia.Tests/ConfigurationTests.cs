@@ -6,11 +6,25 @@ namespace Harmonia.Tests;
 public sealed class ConfigurationTests
 {
     [Fact]
+    public void Existing_dictionary_shortcut_keeps_ctrl_shift_when_modifiers_are_missing()
+    {
+        var configuration = JsonSerializer.Deserialize<Configuration>(
+            """{"DictionaryShortcutKey":"F8"}""")!;
+        Assert.Equal("F8", configuration.DictionaryShortcutKey);
+        Assert.Equal(3, configuration.DictionaryShortcutModifiers);
+        var custom = JsonSerializer.Deserialize<Configuration>(
+            """{"DictionaryShortcutKey":"F12","DictionaryShortcutModifiers":0}""")!;
+        Assert.Equal(0, custom.DictionaryShortcutModifiers);
+    }
+
+    [Fact]
     public void Missing_translation_options_use_stable_defaults()
     {
         var configuration = JsonSerializer.Deserialize<Configuration>("{}")!;
         Assert.True(configuration.TranslatePluginData);
         Assert.True(configuration.OriginalSayPhrases);
+        Assert.False(configuration.DictionaryTabFocusSearch);
+        Assert.False(configuration.DictionaryClearSearchOnOpen);
     }
 
     [Fact]

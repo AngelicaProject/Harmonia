@@ -14,7 +14,7 @@ namespace Harmonia.Game;
 
 // Where players reach the name dictionary: /hfind prints matches into the
 // chat log (items as links, so the game's own item menu works on them) or,
-// without a name, opens the dictionary window; item menus copy the name in
+// without a name, toggles the quick-search palette; item menus copy the name in
 // the game's language. Also the actions of the dictionary window.
 internal sealed class NameLookup : IDisposable
 {
