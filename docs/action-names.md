@@ -1,4 +1,4 @@
-# Action names in commands
+# Command names and arguments
 
 While row hooks are installed, `Game/ActionNameHook.cs` lets the shell find
 actions by their original client-language names as well as the shown names.
@@ -7,7 +7,9 @@ the macro separately from command execution, so changing chat input alone
 would not fix hotbar icons.
 
 The hook retries a failed native sheet-name match with the shown name. It
-handles the name columns of `Action`, `CraftAction`, and `GeneralAction` only.
+handles the name columns of `Action`, `CraftAction`, `GeneralAction`, `Pet`,
+and `PetMirage`. Pet entries cover the native summon-name lookup in
+`/petglamour` and `/petsize`; PetMirage entries cover the glamour argument.
 It builds the names from `OriginalSheets` and `TranslationRuntime.FindSheet`
 and `TryGetShown`: excluded sheets/parts, kept cells, layout mismatches and
 changed source guards never introduce aliases. Names containing SeString
@@ -20,6 +22,19 @@ the native result is one of the rows that supplied that original name and
 translation. Thus duplicate translations cannot select an unrelated action.
 If an original name is also another action's shown name, the native shown
 name takes precedence.
+
+## Command keywords
+
+`Runtime/CommandSyntax.cs` keeps `TextCommandParam` and the command spelling
+and alias columns of `TextCommand` in the client's language. These strings
+are syntax: translating a keyword such as `first` breaks `/sea first Name`
+and saved macros that use it. The same policy applies to shared plugin data.
+Command help remains translated, although a pack's usage examples may need
+to be updated to use the original keywords.
+
+Original-name aliases cover the five sheets listed above. Other name-based
+arguments, such as mounts, minions, emotes and ClassJob search conditions,
+are not covered by this hook and may require the displayed name.
 
 ## Audited client path
 
@@ -47,9 +62,12 @@ checks the installed matcher signature, descriptor accesses, and the calls
 from macro icon resolution through both search layers. Unit tests cover
 case-insensitive original names and duplicate names/translations.
 
-The player confirmed the installed development build works in game on
-2026-11-04. Further regression checks: put original and translated `/micon` lines in
+For in-game regression checks, put original and translated `/micon` lines in
 separate saved macros, inspect their hotbar icons and cooldowns before
 executing them and after login, and exercise `/ac` with both forms, including
 crafting actions. Also check an unknown name, an explicit icon category,
 an excluded names part, and operation with translated shared sheets enabled.
+Check `/sea first Name`, `/sea last Name`, `/petglamour` with original summon
+and appearance names, and `/petsize` with original summon and size arguments.
+The Pet/PetMirage aliases and keyword protection have automated/static checks;
+their in-game regression checks are still pending.

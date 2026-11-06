@@ -188,6 +188,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
                 keep ??= new KeptRows();
                 SheetParts.AddTo(keep, configuration.UntranslatedParts);
                 ServerNames.AddTo(keep);
+                CommandSyntax.AddTo(keep);
 
                 runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
                     new SheetFilter(configuration.UntranslatedSheets), keep, sayPhrases is null ? null : sayPhrases.Rows);
