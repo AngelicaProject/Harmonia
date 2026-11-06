@@ -16,8 +16,9 @@ using LuminaAction = Lumina.Excel.Sheets.Action;
 namespace Harmonia.Game;
 
 // The shell searches a sheet/column for a command argument, including the
-// /micon line read while drawing a saved macro. Retry only action name
-// entries, preserving the native row bounds, comparison and outer type tag.
+// /micon line read while drawing a saved macro. Retry original names only in
+// supported sheets, preserving native bounds, comparison and outer type tag.
+// Pet glamour and size commands use the same search for Pet and PetMirage.
 internal sealed unsafe class ActionNameHook : IDisposable
 {
     private readonly Hook<MatchDelegate> hook;
@@ -40,6 +41,8 @@ internal sealed unsafe class ActionNameHook : IDisposable
             ["Action"] = Build<LuminaAction>(originals, runtime, "Action", static r => r.Name),
             ["CraftAction"] = Build<CraftAction>(originals, runtime, "CraftAction", static r => r.Name),
             ["GeneralAction"] = Build<GeneralAction>(originals, runtime, "GeneralAction", static r => r.Name),
+            ["Pet"] = Build<Pet>(originals, runtime, "Pet", static r => r.Name),
+            ["PetMirage"] = Build<PetMirage>(originals, runtime, "PetMirage", static r => r.Name),
         };
         var matches = scanner.ScanAllText(ActionNameAliases.MatchSignature);
         if (matches.Length != 1)
