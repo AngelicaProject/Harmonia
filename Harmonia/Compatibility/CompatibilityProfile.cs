@@ -30,6 +30,8 @@ namespace Harmonia.Compatibility;
 //             the plugin has in its own code in the game's languages, or
 //             reads from another row than the one the game shows. The rest
 //             of a part is text the plugin reads from the game files.
+//             Also covers names cached before SharedSheets finishes: later
+//             changes to the game files cannot update those copied strings.
 public sealed record CompatibilityProfile(string Plugin, string Name, IReadOnlyList<CompatibilityPart> Parts)
 {
     private const string ResourcePrefix = "Compatibility.";

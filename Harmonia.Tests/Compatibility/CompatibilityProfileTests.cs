@@ -274,12 +274,12 @@ public sealed class CompatibilityProfileTests
     }
 
     [Fact]
-    public void Built_in_profiles_keep_text_for_three_plugins_when_plugins_are_given_the_translation()
+    public void Built_in_profiles_keep_text_for_four_plugins_when_plugins_are_given_the_translation()
     {
         Assert.Empty(CompatibilityProfile.LoadErrors);
         var keeping = CompatibilityProfile.All.Where(static p => p.KeepsAnything(null, hardcodedOnly: true)).Select(static p => p.Plugin);
 
-        Assert.Equal(["AutoRetainer", "Henchman", "TextAdvance"], keeping.Order(StringComparer.Ordinal));
+        Assert.Equal(["AutoRetainer", "Henchman", "TextAdvance", "TriadBuddy"], keeping.Order(StringComparer.Ordinal));
 
         // What stays is always part of what the whole profile keeps.
         foreach (var profile in CompatibilityProfile.All)
@@ -292,5 +292,30 @@ public sealed class CompatibilityProfileTests
                     Assert.Subset(whole.RowsOf(sheet)!.ToHashSet(), rows.ToHashSet());
             }
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Triad_buddy_keeps_cached_rule_and_opponent_names_with_or_without_shared_translations(bool shared)
+    {
+        var profile = Assert.Single(CompatibilityProfile.All, static p => p.Plugin == "TriadBuddy");
+        var keep = CompatibilityProfile.Keep([profile], static source =>
+        {
+            Assert.Equal("triple-triad-npcs", source);
+            return [("ENpcResident", 42u), ("Other", 7u)];
+        }, hardcodedOnly: shared);
+
+        Assert.True(profile.KeepsAnything(hardcodedOnly: shared));
+        Assert.Equal([0u], keep.ColumnsOfEveryRow("TripleTriadRule")!);
+        var opponents = Assert.Single(keep.CellsOf("ENpcResident")!);
+        Assert.Equal(42u, opponents.Key);
+        Assert.Equal([0u], opponents.Value);
+        Assert.Null(keep.ColumnsOfEveryRow("ENpcResident"));
+        Assert.Null(keep.RowsOf("ENpcResident"));
+        Assert.Null(keep.CellsOf("Other"));
+        Assert.False(keep.KeepsSheet("TripleTriadRule"));
+        Assert.Null(keep.ColumnsOfEveryRow("TripleTriadCard"));
+        Assert.Null(keep.RowsOf("Addon"));
     }
 }
