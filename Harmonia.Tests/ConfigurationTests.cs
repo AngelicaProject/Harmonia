@@ -6,6 +6,30 @@ namespace Harmonia.Tests;
 public sealed class ConfigurationTests
 {
     [Fact]
+    public void Automatic_updates_are_enabled_by_default()
+    {
+        Assert.True(new Configuration().AutoDownloadUpdates);
+        Assert.True(JsonSerializer.Deserialize<Configuration>("{}")!.AutoDownloadUpdates);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Existing_settings_adopt_automatic_updates_once_and_preserve_later_opt_out(bool enabled)
+    {
+        var configuration = JsonSerializer.Deserialize<Configuration>(
+            $$"""{"AutoDownloadUpdates":{{enabled.ToString().ToLowerInvariant()}}}""")!;
+        Assert.True(configuration.ApplyAutomaticUpdateDefaults());
+        Assert.True(configuration.AutoDownloadUpdates);
+        Assert.True(configuration.AutomaticUpdateDefaultsApplied);
+
+        configuration.AutoDownloadUpdates = false;
+        var reloaded = JsonSerializer.Deserialize<Configuration>(JsonSerializer.Serialize(configuration))!;
+        Assert.False(reloaded.ApplyAutomaticUpdateDefaults());
+        Assert.False(reloaded.AutoDownloadUpdates);
+    }
+
+    [Fact]
     public void Existing_dictionary_shortcut_keeps_ctrl_shift_when_modifiers_are_missing()
     {
         var configuration = JsonSerializer.Deserialize<Configuration>(

@@ -63,9 +63,6 @@ internal sealed partial class MainWindow
     private void DrawHero()
     {
         var (icon, color, title, text) = HeroState();
-        var runtime = info.Runtime;
-        var running = runtime is not null && info.Hooks is not null;
-
         using var card = Ui.BeginCard("hero");
 
         using (largeIconFont.Push())
@@ -73,35 +70,14 @@ internal sealed partial class MainWindow
             ImGui.TextUnformatted(icon.ToIconString());
 
         var textLeft = card.Left + LargeIconWidth(FontAwesomeIcon.CheckCircle) + (14 * Ui.Scale);
-        var counterWidth = 0f;
-        string? count = null;
-        if (running)
-        {
-            count = runtime!.GetTotals().Applied.ToString("N0", CultureInfo.CurrentCulture);
-            using (headingFont.Push())
-                counterWidth = ImGui.CalcTextSize(count).X;
-            counterWidth = Math.Max(counterWidth, ImGui.CalcTextSize(Lang.T("hero.lines_translated")).X);
-        }
-
         Ui.SameLineAt(textLeft);
         using (ImRaii.Group())
         {
-            using var wrap = ImRaii.TextWrapPos(card.Right - counterWidth - (16 * Ui.Scale));
+            using var wrap = ImRaii.TextWrapPos(card.Right);
             Ui.Heading(headingFont, title);
             Ui.Hint(text);
             if (HeroFailed && Ui.LinkButton(FontAwesomeIcon.Heartbeat, Lang.T("hero.show_details")))
                 page = Page.Diagnostics;
-        }
-
-        if (count is null)
-            return;
-
-        Ui.SameLineAt(card.Right - counterWidth);
-        using (ImRaii.Group())
-        {
-            using (headingFont.Push())
-                ImGui.TextUnformatted(count);
-            ImGui.TextDisabled(Lang.T("hero.lines_translated"));
         }
     }
 

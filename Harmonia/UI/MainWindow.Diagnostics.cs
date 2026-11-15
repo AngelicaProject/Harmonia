@@ -42,7 +42,6 @@ internal sealed partial class MainWindow
     private void DrawDiagnostics()
     {
         Ui.Heading(headingFont, Lang.T("nav.diagnostics"));
-        Ui.Hint(Lang.T("info.intro"));
         Ui.Gap(4);
         var copied = DateTime.UtcNow - copiedAt < TimeSpan.FromSeconds(2);
         if (Ui.PrimaryButton(copied ? FontAwesomeIcon.Check : FontAwesomeIcon.Copy, copied ? Lang.T("info.copied") : Lang.T("info.copy")))

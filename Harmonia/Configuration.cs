@@ -105,8 +105,22 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Feed URLs polled for new releases.</summary>
     public List<string> UpdateFeedUrls { get; set; } = [];
 
-    /// <summary>Install feed releases without asking. Off by default.</summary>
-    public bool AutoDownloadUpdates { get; set; }
+    /// <summary>Install trusted feed releases without asking. On by default.</summary>
+    public bool AutoDownloadUpdates { get; set; } = true;
+
+    public bool AutomaticUpdateDefaultsApplied { get; set; }
+
+    // Saved configurations contain the old false default. Adopt automatic
+    // updates once, then preserve any later opt-out.
+    public bool ApplyAutomaticUpdateDefaults()
+    {
+        if (AutomaticUpdateDefaultsApplied)
+            return false;
+
+        AutoDownloadUpdates = true;
+        AutomaticUpdateDefaultsApplied = true;
+        return true;
+    }
 
     /// <summary>Feed poll interval in minutes (clamped 5..1440 by the service).</summary>
     public int UpdateCheckIntervalMinutes { get; set; } = 60;

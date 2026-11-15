@@ -77,7 +77,9 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
         configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         dictionaryKeyboard = new DictionaryKeyboard(keyState, configuration, saveShortcut: Save, gameTextInputActive: IsGameTextInputActive);
-        if (configuration.ApplyStableTranslationDefaults())
+        var defaultsChanged = configuration.ApplyStableTranslationDefaults();
+        defaultsChanged |= configuration.ApplyAutomaticUpdateDefaults();
+        if (defaultsChanged)
             Save();
 
         var pluginDir = pluginInterface.AssemblyLocation.Directory!.FullName;
