@@ -18,7 +18,7 @@ public sealed class CompatibilityProfileTests
         var profiles = CompatibilityProfile.All;
 
         Assert.Equal(
-            ["Artisan", "AutoRetainer", "Henchman", "Lifestream", "PandorasBox", "Questionable", "SimpleTweaksPlugin", "TextAdvance", "TriadBuddy", "YesAlready"],
+            ["Artisan", "AutoRetainer", "Henchman", "Lifestream", "PandorasBox", "PortraitFixer", "Questionable", "SimpleTweaksPlugin", "TextAdvance", "TriadBuddy", "YesAlready"],
             profiles.Select(static p => p.Plugin).Order(StringComparer.Ordinal));
         Assert.All(profiles, static p => Assert.Contains(p.Parts, static part =>
             part.Rows.Count + part.Sheets.Count + part.Cells.Count + part.Sources.Count > 0));
@@ -274,12 +274,12 @@ public sealed class CompatibilityProfileTests
     }
 
     [Fact]
-    public void Built_in_profiles_keep_text_for_four_plugins_when_plugins_are_given_the_translation()
+    public void Built_in_profiles_keep_required_text_when_plugins_are_given_the_translation()
     {
         Assert.Empty(CompatibilityProfile.LoadErrors);
         var keeping = CompatibilityProfile.All.Where(static p => p.KeepsAnything(null, hardcodedOnly: true)).Select(static p => p.Plugin);
 
-        Assert.Equal(["AutoRetainer", "Henchman", "TextAdvance", "TriadBuddy"], keeping.Order(StringComparer.Ordinal));
+        Assert.Equal(["AutoRetainer", "Henchman", "PortraitFixer", "TextAdvance", "TriadBuddy"], keeping.Order(StringComparer.Ordinal));
 
         // What stays is always part of what the whole profile keeps.
         foreach (var profile in CompatibilityProfile.All)

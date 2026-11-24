@@ -1,0 +1,8 @@
+{
+  "plugin": "PortraitFixer",
+  "name": "Portrait Fixer",
+  "rows": {
+    "Addon": [4411]
+  },
+  "hardcoded": true
+}
