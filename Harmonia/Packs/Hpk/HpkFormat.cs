@@ -29,6 +29,7 @@ public static class HpkFormat
     // Format minor 2: glyphs that replace the game font's own, in the FONTS
     // layout. Readers of minor 1 skip it like any optional kind.
     public const uint KindFontReplacements = 0x10001;
+    public const uint KindNameCases = 0x10002;
 
 
     public const int MaxStringLength = 65535;

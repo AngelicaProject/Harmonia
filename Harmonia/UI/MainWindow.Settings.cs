@@ -62,6 +62,7 @@ internal sealed partial class MainWindow
                     break;
                 case SettingsSection.Translation:
                     DrawTranslationSettings();
+                    DrawDialogueNameSettings();
                     DrawCompatibility();
                     break;
                 case SettingsSection.Dictionary:

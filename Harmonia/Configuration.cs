@@ -20,6 +20,8 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public string ActivePackId { get; set; } = string.Empty;
 
+    public DialogueNameSettings DialogueName { get; set; } = new();
+
     /// <summary>
     /// Sheets kept in the game's language: sheet names and folders
     /// ("quest/*"). Applies at the next game start.

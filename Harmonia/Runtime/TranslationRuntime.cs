@@ -59,6 +59,7 @@ public sealed unsafe class TranslationRuntime : IDisposable
     private readonly long[] rebuilt;
     private readonly long[] unexpected;
     private readonly int[] layoutMismatch;
+    private DialogueNames? dialogueNames;
 
     // The rows of a quest text sheet whose text the game compares with what
     // the player says, and where that text is among the String columns.
@@ -159,6 +160,48 @@ public sealed unsafe class TranslationRuntime : IDisposable
     }
 
     public HpkCell GetCell(HpkRow row, int index, out ushort ordinal) => pack.GetCell(row, index, out ordinal);
+
+    internal void SetDialogueNames(DialogueNameSettings settings, string dataDir, IHarmoniaLog log)
+    {
+        if (!DialogueNames.IsConfigured(settings))
+            return;
+
+        HpkFile? annotations = null;
+        var path = Path.Combine(dataDir, DialogueNames.AnnotationFile);
+        try
+        {
+            if (File.Exists(path))
+            {
+                annotations = HpkFile.Open(path, HpkOpenMode.Full);
+                if (!annotations.HasNameCases || annotations.Manifest.Language != pack.Manifest.Language ||
+                    annotations.Manifest.GameLanguage != pack.Manifest.GameLanguage)
+                    throw new HpkFormatException("Dialogue name annotations do not match the active pack languages.");
+            }
+        }
+        catch (Exception ex)
+        {
+            annotations?.Dispose();
+            annotations = null;
+            log.Warning("Could not load local dialogue name annotations.", ex);
+        }
+
+        try
+        {
+            if (pack.HasNameCases || annotations is not null)
+            {
+                dialogueNames = new DialogueNames(pack, annotations, settings);
+                log.Info("Character name substitutions are enabled for annotated dialogue.");
+            }
+        }
+        catch (Exception ex)
+        {
+            annotations?.Dispose();
+            log.Warning("Could not prepare localized names for dialogue.", ex);
+        }
+    }
+
+    internal Replacement GetReplacement(int sheet, uint rowId, ushort subrow, HpkRow row, int index, ushort ordinal, HpkCell cell) =>
+        dialogueNames?.Resolve(sheet, rowId, subrow, row, index, ordinal, cell) ?? new Replacement(cell.String, cell.Length);
 
     // ordinal is the cell's position among the sheet's String columns.
     public CellDecision Decide(int sheet, uint rowId, ushort ordinal, HpkCell cell, ReadOnlySpan<byte> source)
@@ -268,5 +311,9 @@ public sealed unsafe class TranslationRuntime : IDisposable
     }
 
     // Only after the row hooks are gone: translations are read from the mapping.
-    public void Dispose() => pack.Dispose();
+    public void Dispose()
+    {
+        dialogueNames?.Dispose();
+        pack.Dispose();
+    }
 }
