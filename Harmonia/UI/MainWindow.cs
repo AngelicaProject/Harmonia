@@ -86,7 +86,8 @@ internal sealed partial class MainWindow : Window, IDisposable
         Func<IReadOnlyList<CompatibilityProfile>> relevantProfiles,
         SheetPreviews previews,
         DictionaryKeyboard dictionaryKeyboard,
-        Action arrangeDictionary)
+        Action arrangeDictionary,
+        Func<string?> currentCharacterName)
         : base("Harmonia###harmonia_main")
     {
         this.configuration = configuration;
@@ -102,6 +103,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         this.previews = previews;
         this.dictionaryKeyboard = dictionaryKeyboard;
         this.arrangeDictionary = arrangeDictionary;
+        this.currentCharacterName = currentCharacterName;
         headingFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(MathF.Round(UiBuilder.DefaultFontSizePx * 1.25f))));
         largeIconFont = uiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = MathF.Round(UiBuilder.DefaultFontSizePx * 1.6f) })));
 

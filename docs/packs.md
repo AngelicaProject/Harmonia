@@ -117,6 +117,27 @@ The signatures are taken from the installed game. When one is not found the
 hooks are not installed, names stay lowercase, and translation is otherwise
 unaffected; the Diagnostics report shows whether they are on.
 
+## Player name cases
+
+Format minor 3 can carry an optional section (kind `0x10002`) that identifies
+name substitutions and their cases in individual translated cells. The base
+strings retain the game macros, so readers that skip the section can still
+apply the translation. The format is defined in Aeria's
+`docs/formats/pack-v1.md`.
+
+Open **Edit name** in **Settings** → **Translation** to edit all six cases
+together. Harmonia reads the registered name from the current character.
+Enter the name and surname as you want them to appear and choose **Fill in cases**.
+You can edit any suggested form before saving.
+After restarting, the game uses the configured forms in
+annotated `quest/`, `custom/`, `DefaultTalk`, and `cut_scene/` dialogue.
+It checks the current character whenever it evaluates the dialogue.
+
+For local testing, `dialogue-names.hpk` in Harmonia's configuration directory
+can supply annotations for the active translation. The languages, sheet layout,
+cell identity, source guard, and encoded translation must match. Annotations in
+the active pack take precedence.
+
 ## Font glyphs
 
 A pack of format minor 1 may have a `FONTS` section, and one of minor 2 a

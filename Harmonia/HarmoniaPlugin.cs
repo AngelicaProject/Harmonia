@@ -63,6 +63,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
         IGameInteropProvider interop,
         ISigScanner scanner,
         IClientState clientState,
+        IPlayerState playerState,
         IDataManager dataManager,
         IContextMenu contextMenu,
         ITextureProvider textures,
@@ -194,6 +195,7 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
 
                 runtime = new TranslationRuntime(file, configuration.ActivePackId, selected?.FilePath ?? string.Empty,
                     new SheetFilter(configuration.UntranslatedSheets), keep, sayPhrases is null ? null : sayPhrases.Rows);
+                runtime.SetDialogueNames(configuration.DialogueName, dataDir, log);
                 try
                 {
                     hooks = new ExcelRowHooks(interop, scanner, runtime, log);
@@ -302,7 +304,8 @@ public sealed class HarmoniaPlugin : IDalamudPlugin
             pluginInterface.UiBuilder,
             textures,
             () => RelevantProfiles(pluginInterface, pluginConfigs, configuration.TranslatePluginData && SharedSheets.Available),
-            new SheetPreviews(originals, log), dictionaryKeyboard, () => dictionaryPalette?.BeginArrange());
+            new SheetPreviews(originals, log), dictionaryKeyboard, () => dictionaryPalette?.BeginArrange(),
+            () => playerState.IsLoaded ? playerState.CharacterName : null);
         restartWindow = new RestartWindow(() => commands.ProcessCommand("/xldisableplugintemp \"Harmonia\""))
         {
             IsOpen = reloaded,

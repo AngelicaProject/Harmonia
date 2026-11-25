@@ -232,7 +232,7 @@ public sealed unsafe class ExcelRowHooks : IDisposable
             if (runtime.Decide(packSheet, descriptor->RowId, ordinal, cell, source) != CellDecision.Applied)
                 continue;
 
-            replacements[ordinal] = new Replacement(cell.String, cell.Length);
+            replacements[ordinal] = runtime.GetReplacement(packSheet, descriptor->RowId, subrowId, packRow, i, ordinal, cell);
             any = true;
         }
 

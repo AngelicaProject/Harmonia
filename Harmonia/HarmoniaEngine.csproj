@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.28.1</Version>
+    <Version>0.1.29.0</Version>
     <AssemblyName>HarmoniaEngine</AssemblyName>
     <RootNamespace>Harmonia</RootNamespace>
     <Nullable>enable</Nullable>
@@ -28,6 +28,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Harmonia.Tests" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <!-- Serves the pack's font glyphs through a temporary mod; optional at runtime. -->
     <PackageReference Include="Penumbra.Api" Version="5.15.1" />

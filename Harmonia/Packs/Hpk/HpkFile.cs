@@ -44,6 +44,7 @@ public sealed unsafe class HpkFile : IDisposable
     private long stringsLength;
     private (long Offset, long Length)? fontsSection;
     private (long Offset, long Length)? fontReplacementsSection;
+    private (long Offset, long Length)? nameCasesSection;
     private long namesOffset;
     private long namesLength;
     private int sheetCount;
@@ -74,6 +75,8 @@ public sealed unsafe class HpkFile : IDisposable
             fontsSection = fonts;
         if (sections.TryGetValue(HpkFormat.KindFontReplacements, out var replacements))
             fontReplacementsSection = replacements;
+        if (sections.TryGetValue(HpkFormat.KindNameCases, out var nameCases))
+            nameCasesSection = nameCases;
         sheetNames = new string[sheetCount];
         layouts = new HpkLayoutColumn[]?[sheetCount];
         ReadSheets();
@@ -87,6 +90,8 @@ public sealed unsafe class HpkFile : IDisposable
                 ReadFonts();
             if (HasFontReplacements)
                 ReadFontReplacements();
+            if (nameCasesSection is { } section)
+                ValidateNameCases(section.Offset, section.Length);
         }
     }
 
@@ -105,6 +110,8 @@ public sealed unsafe class HpkFile : IDisposable
 
     // The pack carries a font-replacements section (format minor 2).
     public bool HasFontReplacements => fontReplacementsSection is not null;
+
+    public bool HasNameCases => nameCasesSection is not null;
 
     // Parses and validates the FONTS section; null when the pack has none.
     public HpkFonts? ReadFonts() => ReadFontSection(fontsSection);
@@ -240,6 +247,71 @@ public sealed unsafe class HpkFile : IDisposable
             BinaryPrimitives.ReadUInt64LittleEndian(Span(at + 16, HpkFormat.GuardSize)));
     }
 
+    public HpkNameCase[] GetNameCases(HpkRow row, int index)
+    {
+        if ((uint)index >= (uint)row.CellCount)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        if (Mode != HpkOpenMode.Full || nameCasesSection is not { } section)
+            return [];
+
+        var cell = row.FirstCell + index;
+        var lo = 0L;
+        var hi = section.Length / 8;
+        while (lo < hi)
+        {
+            var mid = lo + ((hi - lo) / 2);
+            if (U32(section.Offset + mid * 8) < cell)
+                lo = mid + 1;
+            else
+                hi = mid;
+        }
+
+        var start = section.Offset + lo * 8;
+        var end = start;
+        while (end < section.Offset + section.Length && U32(end) == cell)
+            end += 8;
+        return ReadNameCases(start, end);
+    }
+
+    private HpkNameCase[] ReadNameCases(long start, long end)
+    {
+        if (start == end)
+            return [];
+        var result = new HpkNameCase[(int)((end - start) / 8)];
+        for (var i = 0; i < result.Length; i++)
+        {
+            var at = start + i * 8;
+            result[i] = new HpkNameCase(U16(at + 4), (PlayerNamePart)data[at + 6], (PlayerNameCase)data[at + 7]);
+        }
+        return result;
+    }
+
+    private void ValidateNameCases(long offset, long length)
+    {
+        if (U16(10) < 3 || length == 0 || length % 8 != 0)
+            throw new HpkFormatException("Invalid player name case section size or version.");
+        var end = offset + length;
+        var previous = -1L;
+        while (offset < end)
+        {
+            var cell = U32(offset);
+            if (cell <= previous || cell >= cellCount)
+                throw new HpkFormatException("Invalid player name case cell index or order.");
+            previous = cell;
+            var start = offset;
+            var at = cellsOffset + (long)cell * HpkFormat.CellRecordSize;
+            var text = Span(stringsOffset + U32(at + 8), (int)U32(at + 4));
+            do
+            {
+                offset += 8;
+                if ((offset - start) / 8 > text.Length)
+                    throw new HpkFormatException("Too many player name substitutions in a cell.");
+            } while (offset < end && U32(offset) == cell);
+            if (!HpkNameCase.Matches(text, ReadNameCases(start, offset)))
+                throw new HpkFormatException("Invalid player name substitutions in a cell.");
+        }
+    }
+
     public bool TryGetCell(int sheet, uint rowId, ushort subrowId, uint ordinal, out HpkCell cell)
     {
         cell = default;
@@ -324,7 +396,7 @@ public sealed unsafe class HpkFile : IDisposable
                 throw new HpkFormatException("Non-zero padding between pack sections.");
 
             cursor = (long)(offset + length);
-            if (kind is HpkFormat.KindFonts or HpkFormat.KindFontReplacements)
+            if (kind is HpkFormat.KindFonts or HpkFormat.KindFontReplacements or HpkFormat.KindNameCases)
             {
                 if (!result.TryAdd(kind, ((long)offset, (long)length)))
                     throw new HpkFormatException("Duplicate pack section " + kind + ".");
